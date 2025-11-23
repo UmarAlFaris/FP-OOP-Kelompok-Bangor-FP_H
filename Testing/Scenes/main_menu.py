@@ -28,7 +28,8 @@ class MainMenuScreen(ScreenBase):
         ]
 
     def start_game(self):
-        self.manager.go_to("game")
+        self.manager.go_to("scene_1")
+
 
     def go_high_score(self):
         self.manager.go_to("high_score")
