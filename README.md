@@ -4,10 +4,8 @@ FP OOP Kelompok Bangor FP_H
 JANGAN LUPA SEBELUM NGEDIT DI FETCH ORIGIN DI GITHUB DESKTOP BARU DI PULL BARU DI EDIT FILENYA
 
 Nama Kontirbutor:
-
-Umar Al Faris - 5054241015
-
-Muhammad Hadidan Nurhaunan - 5054241016
+- Umar Al Faris - 5054241015
+- Muhammad Hadidan Nurhaunan - 5054241016
 
 # VIVA Fantasy: Calvin Origin
 
