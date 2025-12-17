@@ -259,6 +259,10 @@ class TurnBasedGrid(ScreenBase):
         
         # Play spawn sound for initial enemies
         self._play_spawn_sounds()
+        
+        # Load boss fight music path
+        self.boss_music_path = os.path.join(sounds_dir, 'sound_boss.mp3')
+        self.is_boss_fight = stages and 'Boss' in stages
 
         # Use fuzzy logic module (already imported at module level)
         self.fuzzy = fuzzy
@@ -305,6 +309,19 @@ class TurnBasedGrid(ScreenBase):
     def on_enter(self):
         """Reset local turn counter when battle starts (global counter keeps accumulating)."""
         self.turn_count = 0
+        
+        # Play boss music if this is a boss fight
+        if self.is_boss_fight:
+            try:
+                pygame.mixer.music.load(self.boss_music_path)
+                pygame.mixer.music.play(loops=-1)
+            except Exception as e:
+                print(f"Warning: Could not load boss music: {e}")
+    
+    def on_exit(self):
+        """Called when leaving the battle - stop boss music if playing."""
+        if self.is_boss_fight:
+            pygame.mixer.music.stop()
 
     # STEP 2: Button callback methods
     def btn_move(self):
