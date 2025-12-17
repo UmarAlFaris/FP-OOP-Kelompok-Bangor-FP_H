@@ -15,8 +15,10 @@ from entities.player import Player
 from entities.enemies import Zombie, Skeleton, Enderman
 from entities.boss import Boss
 from ai import fuzzy_logic as fuzzy
-from utils import scale_preserve, bfs_reachable
-from ui.button import Button
+from utils import bfs_reachable
+from scenes.components.battle_assets import BattleAssetLoader
+from scenes.components.battle_renderer import BattleRenderer
+from scenes.components.battle_ui import BattleUIManager
 
 
 class TurnBasedGrid(ScreenBase):
@@ -31,12 +33,6 @@ class TurnBasedGrid(ScreenBase):
         self.reward_levels = reward_levels
         self.is_miniboss = is_miniboss
 
-        self.FRAME_COUNTS = {
-            'Zombie': 6,
-            'Skeleton': 7,
-            'Enderman': 14,
-            'Boss': 8,
-        }
         self.grid_w = GRID_W
         self.grid_h = GRID_H
         usable_h = self.screen_height - 120
@@ -92,204 +88,48 @@ class TurnBasedGrid(ScreenBase):
                 else:
                     self.enemies.append(Zombie(ex, ey))  # default fallback
 
-        # load animated player frames
-        repo = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        self.player_frames = []
-        
-        player_paths = [
-            os.path.join(repo, 'assets', 'player')
-        ]
-        
-        for player_dir in player_paths:
-            if not os.path.isdir(player_dir):
-                continue
-            try:
-                files = sorted([f for f in os.listdir(player_dir) if f.lower().startswith('idle') and f.lower().endswith('.png')])
-                if files:
-                    for f in files:
-                        p = os.path.join(player_dir, f)
-                        img = pygame.image.load(p).convert_alpha()
-                        self.player_frames.append(scale_preserve(img, (self.tile + 30, self.tile + 30)))
-                    print(f"✓ Loaded {len(self.player_frames)} player frames from {player_dir}")
-                    break
-            except Exception as ex:
-                print(f"✗ Failed loading player from {player_dir}: {ex}")
-                
-        if not self.player_frames:
-            # fallback single square
-            print("WARNING: No player frames loaded, using fallback")
-            surf = pygame.Surface((self.tile, self.tile))
-            surf.fill((200,200,200))
-            self.player_frames = [surf]
-        self.player_anim_index = 0
-        self.player_anim_timer = 0
-        self.player_anim_speed = 8
-
-        # Load battlefield background images
-        self.battlefield_bg = None
-        self.boss_battle_bg = None
-        try:
-            battlefield_path = os.path.join(repo, 'assets', 'battlefield', 'battlefield_grid.png')
-            if os.path.isfile(battlefield_path):
-                bg_img = pygame.image.load(battlefield_path).convert()
-                # Scale to fit grid area
-                grid_width = self.grid_w * self.tile
-                grid_height = self.grid_h * self.tile
-                self.battlefield_bg = pygame.transform.scale(bg_img, (grid_width, grid_height))
-                print(f"✓ Loaded battlefield background from {battlefield_path}")
-            else:
-                print(f"✗ Battlefield background not found at {battlefield_path}")
-        except Exception as ex:
-            print(f"✗ Failed loading battlefield background: {ex}")
-        
-        try:
-            boss_path = os.path.join(repo, 'assets', 'battlefield', 'boss_battle.png')
-            if os.path.isfile(boss_path):
-                boss_img = pygame.image.load(boss_path).convert()
-                # Scale to fit grid area
-                grid_width = self.grid_w * self.tile
-                grid_height = self.grid_h * self.tile
-                self.boss_battle_bg = pygame.transform.scale(boss_img, (grid_width, grid_height))
-                print(f"✓ Loaded boss battle background from {boss_path}")
-            else:
-                print(f"✗ Boss battle background not found at {boss_path}")
-        except Exception as ex:
-            print(f"✗ Failed loading boss battle background: {ex}")
-
-        # load enemy animated frames per enemy
-        self.enemy_frames = []
-        self.enemy_anim_indexes = []
-        self.enemy_anim_timers = []
-        for e in self.enemies:
-            et = type(e).__name__
-            name = et.lower()
-            frames = []
-            loaded = False
-            
-            enemy_paths = [
-                os.path.join(repo, 'assets', name)
-            ]
-            
-            for enemy_dir in enemy_paths:
-                if loaded:
-                    break
-                    
-                # Try spritesheet first (Idle.png or idle.png - case insensitive)
-                sheet_path = None
-                for fname in ['Idle.png', 'idle.png']:
-                    test_path = os.path.join(enemy_dir, fname)
-                    if os.path.isfile(test_path):
-                        sheet_path = test_path
-                        break
-                        
-                if sheet_path:
-                    try:
-                        sheet = pygame.image.load(sheet_path).convert_alpha()
-                        n = self.FRAME_COUNTS.get(et, 6)
-                        fw = sheet.get_width() // max(1, n)
-                        fh = sheet.get_height()
-                        # Boss uses larger sprite size
-                        sprite_size = (self.tile + 100, self.tile + 100) if et == 'Boss' else (self.tile + 30, self.tile + 30)
-                        for i in range(n):
-                            sub = sheet.subsurface((i*fw, 0, fw, fh))
-                            frames.append(scale_preserve(sub, sprite_size))
-                        print(f"✓ Loaded {et} spritesheet ({n} frames) from {sheet_path}")
-                        loaded = True
-                        break
-                    except Exception as ex:
-                        print(f"✗ Failed loading {et} sheet from {sheet_path}: {ex}")
-                        
-                # Try individual files
-                if os.path.isdir(enemy_dir):
-                    try:
-                        files = sorted([f for f in os.listdir(enemy_dir) if f.lower().endswith('.png')])
-                        if files:
-                            sprite_size = (self.tile + 100, self.tile + 100) if et == 'Boss' else (self.tile + 30, self.tile + 30)
-                            for f in files:
-                                p = os.path.join(enemy_dir, f)
-                                img = pygame.image.load(p).convert_alpha()
-                                frames.append(scale_preserve(img, sprite_size))
-                            print(f"✓ Loaded {et} from {enemy_dir} ({len(frames)} frames)")
-                            loaded = True
-                            break
-                    except Exception as ex:
-                        print(f"✗ Failed loading {et} from {enemy_dir}: {ex}")
-                        
-            if not frames:
-                print(f"WARNING: No frames for {et}, using fallback")
-                surf = pygame.Surface((self.tile, self.tile))
-                surf.fill((120, 0, 0))
-                frames = [surf]
-                
-            self.enemy_frames.append(frames)
-            self.enemy_anim_indexes.append(0)
-            self.enemy_anim_timers.append(0)
+        # Initialize asset loader component and load all assets
+        self.asset_loader = BattleAssetLoader(self.tile)
+        self.assets = self.asset_loader.load_assets(self.enemies, self.grid_w, self.grid_h)
 
         self.cursor = [0,0]
         self.turn = 'PLAYER'
         self.move_range = 2
         self.turn_count = 0  # track turn number for current battle
         
-        # Load sound effects
-        sounds_dir = os.path.join(repo, 'assets', 'sounds')
-        self.sounds = {}
-        sound_files = {
-            'player_attack': 'Player_attack.mp3',
-            'heal': 'Heal.mp3',
-            'zombie_spawn': 'Zombie_spawn.mp3',
-            'zombie_attack': 'Zombie_attack.mp3',
-            'skeleton_spawn': 'Skeleton_spawn.mp3',
-            'skeleton_attack': 'Skeleton_attack.mp3',
-            'enderman_spawn': 'Enderman_spawn.mp3',
-            'enderman_attack': 'Enderman_attack.mp3',
-            'enderman_teleport': 'Enderman_teleport.mp3',
-            'boss_spawn': 'Boss_spawn.mp3',
-            'boss_attack': 'Boss_attack.mp3',
-        }
-        for key, filename in sound_files.items():
-            try:
-                sound_path = os.path.join(sounds_dir, filename)
-                self.sounds[key] = pygame.mixer.Sound(sound_path)
-            except FileNotFoundError:
-                print(f"Warning: Sound file not found: {filename}")
-                self.sounds[key] = None
-            except Exception as e:
-                print(f"Warning: Could not load sound {filename}: {e}")
-                self.sounds[key] = None
-        
         # Play spawn sound for initial enemies
         self._play_spawn_sounds()
         
-        # Load boss fight music path
-        self.boss_music_path = os.path.join(sounds_dir, 'sound_boss.mp3')
+        # Boss fight flag
         self.is_boss_fight = stages and 'Boss' in stages
 
         # Use fuzzy logic module (already imported at module level)
         self.fuzzy = fuzzy
 
         self.font = pygame.font.SysFont(None, 24)
-        self.font_small = pygame.font.SysFont(None, 20)  # STEP 1.2: font for tooltips
+        self.font_small = pygame.font.SysFont(None, 20)
         # gameplay state
         self.mode = 'IDLE'
         self.move_targets = set()
         self.message = 'Giliran PLAYER. Tekan M:move A:attack H:heal E:end.'
         self.units = [self.player] + self.enemies
         
-        # STEP 1.3: Create action buttons with tooltips
-        button_y = self.grid_h * self.tile + 80
-        button_spacing = 150
-        button_start_x = 500
-        self.buttons = [
-            Button("Move (M)", (button_start_x, button_y), (130, 40), self.btn_move, self.font),
-            Button("Attack (A)", (button_start_x + button_spacing, button_y), (130, 40), self.btn_attack, self.font),
-            Button("Heal (H)", (button_start_x + button_spacing * 2, button_y), (130, 40), self.btn_heal, self.font),
-            Button("End Turn (E)", (button_start_x + button_spacing * 3, button_y), (130, 40), self.btn_end, self.font),
-        ]
-        # Assign tooltips to each button
-        self.buttons[0].tooltip = "Move your character to an adjacent tile."
-        self.buttons[1].tooltip = "Attack an enemy in range."
-        self.buttons[2].tooltip = "Heal yourself (costs 20 Mana)."
-        self.buttons[3].tooltip = "End your turn."
+        # Initialize renderer component
+        self.renderer = BattleRenderer(
+            self.tile, self.grid_w, self.grid_h,
+            self.origin_x, self.origin_y, self.screen_width
+        )
+        
+        # Initialize UI manager component
+        self.ui_manager = BattleUIManager(
+            self.grid_h, self.tile,
+            callbacks={
+                'move': self.btn_move,
+                'attack': self.btn_attack,
+                'heal': self.btn_heal,
+                'end': self.btn_end
+            }
+        )
     
     def _play_spawn_sounds(self):
         """Play spawn sounds for all current enemies."""
@@ -298,13 +138,13 @@ class TurnBasedGrid(ScreenBase):
                 continue
             etype = type(e).__name__.lower()
             sound_key = f"{etype}_spawn"
-            if sound_key in self.sounds and self.sounds[sound_key]:
-                self.sounds[sound_key].play()
+            if sound_key in self.assets['sounds'] and self.assets['sounds'][sound_key]:
+                self.assets['sounds'][sound_key].play()
     
     def _play_sound(self, key):
         """Play a sound effect by key if it exists."""
-        if key in self.sounds and self.sounds[key]:
-            self.sounds[key].play()
+        if key in self.assets['sounds'] and self.assets['sounds'][key]:
+            self.assets['sounds'][key].play()
 
     def on_enter(self):
         """Reset local turn counter when battle starts (global counter keeps accumulating)."""
@@ -313,7 +153,7 @@ class TurnBasedGrid(ScreenBase):
         # Play boss music if this is a boss fight
         if self.is_boss_fight:
             try:
-                pygame.mixer.music.load(self.boss_music_path)
+                pygame.mixer.music.load(self.assets['boss_music_path'])
                 pygame.mixer.music.play(loops=-1)
             except Exception as e:
                 print(f"Warning: Could not load boss music: {e}")
@@ -352,9 +192,8 @@ class TurnBasedGrid(ScreenBase):
         self.end_turn()
 
     def handle_event(self, event):
-        # STEP 5: Handle button events
-        for b in self.buttons:
-            b.handle_event(event)
+        # Delegate to UI manager for button events
+        self.ui_manager.handle_event(event)
         
         if event.type == pygame.KEYDOWN:
             # cursor keys
@@ -493,74 +332,11 @@ class TurnBasedGrid(ScreenBase):
                         self.enemies = [Zombie(ex, ey)]  # default fallback
                     # update self.units to include new enemy (fix for unit_at check)
                     self.units = [self.player] + self.enemies
-                    # rebuild enemy_frames arrays
-                    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-                    self.enemy_frames = []
-                    self.enemy_anim_indexes = []
-                    self.enemy_anim_timers = []
-                    for e in self.enemies:
-                        et = type(e).__name__
-                        name = et.lower()
-                        frames = []
-                        loaded = False
-                        
-                        enemy_paths = [
-                            os.path.join(repo, 'assets', name)
-                        ]
-                        
-                        for enemy_dir in enemy_paths:
-                            if loaded:
-                                break
-                                
-                            # Try spritesheet first (Idle.png or idle.png)
-                            sheet_path = None
-                            for fname in ['Idle.png', 'idle.png']:
-                                test_path = os.path.join(enemy_dir, fname)
-                                if os.path.isfile(test_path):
-                                    sheet_path = test_path
-                                    break
-                                    
-                            if sheet_path:
-                                try:
-                                    sheet = pygame.image.load(sheet_path).convert_alpha()
-                                    n = self.FRAME_COUNTS.get(et, 6)
-                                    fw = sheet.get_width() // max(1, n)
-                                    fh = sheet.get_height()
-                                    sprite_size = (self.tile + 100, self.tile + 100) if et == 'Boss' else (self.tile + 30, self.tile + 30)
-                                    for i in range(n):
-                                        sub = sheet.subsurface((i*fw, 0, fw, fh))
-                                        frames.append(scale_preserve(sub, sprite_size))
-                                    print(f"✓ Stage progression: Loaded {et} spritesheet ({n} frames)")
-                                    loaded = True
-                                    break
-                                except Exception as ex:
-                                    print(f"✗ Failed loading {et} sheet: {ex}")
-                                    
-                            # Try individual files
-                            if os.path.isdir(enemy_dir):
-                                try:
-                                    files = sorted([f for f in os.listdir(enemy_dir) if f.lower().endswith('.png')])
-                                    if files:
-                                        sprite_size = (self.tile + 100, self.tile + 100) if et == 'Boss' else (self.tile + 30, self.tile + 30)
-                                        for f in files:
-                                            p = os.path.join(enemy_dir, f)
-                                            img = pygame.image.load(p).convert_alpha()
-                                            frames.append(scale_preserve(img, sprite_size))
-                                        print(f"✓ Stage progression: Loaded {et} ({len(frames)} frames)")
-                                        loaded = True
-                                        break
-                                except Exception as ex:
-                                    print(f"✗ Failed loading {et}: {ex}")
-                                    
-                        if not frames:
-                            print(f"WARNING: Stage progression - No frames for {et}, using fallback")
-                            surf = pygame.Surface((self.tile, self.tile))
-                            surf.fill((120, 0, 0))
-                            frames = [surf]
-                            
-                        self.enemy_frames.append(frames)
-                        self.enemy_anim_indexes.append(0)
-                        self.enemy_anim_timers.append(0)
+                    # reload enemy_frames using asset_loader
+                    enemy_frames, enemy_anim_indexes, enemy_anim_timers = self.asset_loader.reload_enemy_frames(self.enemies)
+                    self.assets['enemy_frames'] = enemy_frames
+                    self.assets['enemy_anim_indexes'] = enemy_anim_indexes
+                    self.assets['enemy_anim_timers'] = enemy_anim_timers
                     # Player HP persists between stages (no auto-heal)
                     self.turn = 'PLAYER'
                     self.mode = 'IDLE'
@@ -637,16 +413,16 @@ class TurnBasedGrid(ScreenBase):
                 print(f"{type(e).__name__} healed +{ENEMY_HEAL_AMOUNT} HP. Mana: {e.mana}")
 
     def update(self, dt):
-        # advance animations
-        self.player_anim_timer += 1
-        if self.player_anim_timer >= self.player_anim_speed:
-            self.player_anim_timer = 0
-            self.player_anim_index = (self.player_anim_index + 1) % len(self.player_frames)
-        for i, frames in enumerate(self.enemy_frames):
-            self.enemy_anim_timers[i] += 1
-            if self.enemy_anim_timers[i] >= 8:
-                self.enemy_anim_timers[i] = 0
-                self.enemy_anim_indexes[i] = (self.enemy_anim_indexes[i] + 1) % max(1, len(frames))
+        # advance animations using assets dictionary
+        self.assets['player_anim_timer'] += 1
+        if self.assets['player_anim_timer'] >= self.assets['player_anim_speed']:
+            self.assets['player_anim_timer'] = 0
+            self.assets['player_anim_index'] = (self.assets['player_anim_index'] + 1) % len(self.assets['player_frames'])
+        for i, frames in enumerate(self.assets['enemy_frames']):
+            self.assets['enemy_anim_timers'][i] += 1
+            if self.assets['enemy_anim_timers'][i] >= 8:
+                self.assets['enemy_anim_timers'][i] = 0
+                self.assets['enemy_anim_indexes'][i] = (self.assets['enemy_anim_indexes'][i] + 1) % max(1, len(frames))
 
         if self.turn == 'ENEMY':
             occupied = {(e.x, e.y) for e in self.enemies if e.alive}
@@ -692,104 +468,20 @@ class TurnBasedGrid(ScreenBase):
             self.mode = 'IDLE'
 
     def draw(self, surface):
-        surface.fill((20,20,20))
-        # Draw battlefield background based on enemy type
-        is_boss_fight = any(type(e).__name__ == 'Boss' and e.alive for e in self.enemies)
-        if is_boss_fight and self.boss_battle_bg:
-            surface.blit(self.boss_battle_bg, (self.origin_x, self.origin_y))
-        elif self.battlefield_bg:
-            surface.blit(self.battlefield_bg, (self.origin_x, self.origin_y))
-        else:
-            # Fallback to grid drawing if images not loaded
-            for x in range(self.grid_w):
-                for y in range(self.grid_h):
-                    rx = self.origin_x + x * self.tile
-                    ry = self.origin_y + y * self.tile
-                    rect = pygame.Rect(rx, ry, self.tile, self.tile)
-                    pygame.draw.rect(surface, (80,80,80), rect, 1)
-
-        # move target highlights
-        if self.mode == 'MOVE' and self.move_targets:
-            for (mx,my) in self.move_targets:
-                r = pygame.Rect(mx*self.tile+6, my*self.tile+6, self.tile-12, self.tile-12)
-                pygame.draw.rect(surface, (180,240,180), r, 2)
-
-        # draw player (animated)
-        px = self.origin_x + self.player.x * self.tile
-        py = self.origin_y + self.player.y * self.tile
-        pframe = self.player_frames[self.player_anim_index]
-        # position sprite to sit on bottom center of tile
-        rect = pframe.get_rect(midbottom=(px + self.tile//2, py + self.tile - 8))
-        surface.blit(pframe, rect)
-        # draw player HP bar
-        ph_ratio = max(0, self.player.hp) / self.player.max_hp
-        bar_w = int(self.tile * 0.8)
-        bx = self.player.x*self.tile + (self.tile-bar_w)//2
-        by = self.player.y*self.tile + self.tile - 12
-        pygame.draw.rect(surface, (40,40,40), (bx,by,bar_w,6))
-        pygame.draw.rect(surface, (50,180,50), (bx,by,int(bar_w*ph_ratio),6))
-
-        # draw enemies
-        for i, e in enumerate(self.enemies):
-            if not e.alive: continue
-            ex = self.origin_x + e.x * self.tile
-            ey = self.origin_y + e.y * self.tile
-            frames = self.enemy_frames[i]
-            idx = self.enemy_anim_indexes[i] % max(1, len(frames))
-            ef = frames[idx]
-            # position sprite to sit on bottom center of tile
-            erect = ef.get_rect(midbottom=(ex + self.tile//2, ey + self.tile - 8))
-            surface.blit(ef, erect)
-            # hp bar
-            ehr = max(0, e.hp) / e.max_hp
-            bar_w = int(self.tile * 0.8)
-            bx = e.x*self.tile + (self.tile-bar_w)//2
-            by = e.y*self.tile + self.tile - 12
-            pygame.draw.rect(surface, (40,40,40), (bx,by,bar_w,6))
-            pygame.draw.rect(surface, (50,180,50), (bx,by,int(bar_w*ehr),6))
-
-        # cursor
-        crx = self.origin_x + self.cursor[0] * self.tile
-        cry = self.origin_y + self.cursor[1] * self.tile
-        pygame.draw.rect(surface, (255,200,0), (crx, cry, self.tile, self.tile), 3)
-
-        # UI panel bottom
-        panel = pygame.Rect(0, self.grid_h * self.tile, self.screen_width, 120)
-        pygame.draw.rect(surface, (30,30,30), panel)
-        info = f'Turn: {self.turn} | Mode: {self.mode} | Cursor: {self.cursor[0]},{self.cursor[1]}'
-        surface.blit(self.font.render(info, True, (255,255,255)), (8, self.grid_h*self.tile + 6))
-        surface.blit(self.font.render(self.message, True, (230,200,60)), (8, self.grid_h*self.tile + 30))
-        # turn counter in bottom right
-        turn_text = f'Total Turns: {self.manager.total_run_turns}'
-        turn_surf = self.font.render(turn_text, True, (100, 255, 255))
-        surface.blit(turn_surf, (self.screen_width - 200, self.grid_h*self.tile + 6))
+        # Build game state dictionary for renderer
+        game_state = {
+            'player': self.player,
+            'enemies': self.enemies,
+            'cursor': self.cursor,
+            'mode': self.mode,
+            'move_targets': self.move_targets,
+            'message': self.message,
+            'turn': self.turn,
+            'total_run_turns': self.manager.total_run_turns
+        }
         
-        # Player stats (Level, HP and Mana) display
-        stats_text = f"Lv. {self.player.level} | HP: {self.player.hp}/{self.player.max_hp} | ATK: {self.player.atk} | Mana: {self.player.mana}"
-        stats_surf = self.font.render(stats_text, True, (100, 255, 100))
-        surface.blit(stats_surf, (8, self.grid_h*self.tile + 90))
+        # Delegate rendering to the renderer component
+        self.renderer.draw(surface, self.assets, game_state)
         
-        # Draw level indicator above player sprite
-        level_text = f"Lv.{self.player.level}"
-        level_surf = self.font_small.render(level_text, True, (255, 215, 0))
-        level_rect = level_surf.get_rect(midbottom=(px + self.tile//2, py - 40))
-        surface.blit(level_surf, level_rect)
-        
-        # STEP 4.1: Draw buttons
-        for b in self.buttons:
-            b.draw(surface)
-        
-        # STEP 4.2: Draw tooltips on hover
-        mx, my = pygame.mouse.get_pos()
-        for b in self.buttons:
-            if b.rect.collidepoint((mx, my)):
-                # Render tooltip above the button
-                tooltip_surf = self.font_small.render(b.tooltip, True, (255, 255, 200))
-                tooltip_rect = tooltip_surf.get_rect()
-                tooltip_rect.midbottom = (b.rect.centerx, b.rect.top - 5)
-                # Draw tooltip background
-                bg_rect = tooltip_rect.inflate(10, 6)
-                pygame.draw.rect(surface, (50, 50, 50), bg_rect, border_radius=4)
-                pygame.draw.rect(surface, (200, 200, 150), bg_rect, 1, border_radius=4)
-                surface.blit(tooltip_surf, tooltip_rect)
-                break  # Only show one tooltip at a time
+        # Delegate UI drawing to the UI manager component
+        self.ui_manager.draw(surface)
