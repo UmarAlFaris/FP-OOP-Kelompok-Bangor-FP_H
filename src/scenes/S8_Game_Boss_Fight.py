@@ -1,5 +1,5 @@
 
-from scenes.fight_base import TurnBasedGrid
+from scenes.fight_tactical import TurnBasedGrid
 
 
 class SceneBoss(TurnBasedGrid):
