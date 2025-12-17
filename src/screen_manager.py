@@ -26,7 +26,7 @@ class ScreenManager:
     def reset_score(self):
         """Reset the global turn counter and player stats for a new game run."""
         self.total_run_turns = 0
-        self.player_stats = {'level': 1, 'hp': 20, 'max_hp': 20, 'atk': 5, 'mana': 100, 'max_mana': 100}
+        self.player_stats = {'level': 1, 'hp': 25, 'max_hp': 25, 'atk': 5, 'mana': 100, 'max_mana': 100}
         self.miniboss_defeated = False
 
     def level_up(self, amount):

@@ -46,6 +46,11 @@ class EndMenuScreen(ScreenBase):
 
     def on_enter(self):
         """Called when screen becomes active. Fetch total run turns and reset state."""
+        # Check if player is defeated
+        self.is_defeated = self.manager.player_stats['hp'] <= 0
+        if self.is_defeated:
+            print("Player is dead")
+        
         # Get cumulative turn count for entire run (all battles)
         self.boss_turns = self.manager.total_run_turns
         
@@ -117,79 +122,103 @@ class EndMenuScreen(ScreenBase):
 
     def handle_event(self, event):
         """Handle keyboard input and button clicks."""
-        # Handle buttons
-        if not self.saved:
+        # Handle buttons (save button only for victory)
+        if not self.is_defeated and not self.saved:
             self.save_btn.handle_event(event)
         self.menu_btn.handle_event(event)
         self.quit_btn.handle_event(event)
 
-        # Handle text input
-        if event.type == pygame.KEYDOWN and self.input_active and not self.saved:
-            if event.key == pygame.K_RETURN:
-                # Enter key: save score
-                self.save_score()
-            elif event.key == pygame.K_BACKSPACE:
-                # Remove last character
-                self.player_name = self.player_name[:-1]
-            else:
-                # Add character (limit to 20 characters)
-                if len(self.player_name) < 20:
-                    char = event.unicode
-                    if char.isprintable():
-                        self.player_name += char
+        # Handle text input (only for victory, not defeated)
+        if not self.is_defeated and not self.saved:
+            if event.type == pygame.KEYDOWN and self.input_active:
+                if event.key == pygame.K_RETURN:
+                    # Enter key: save score
+                    self.save_score()
+                elif event.key == pygame.K_BACKSPACE:
+                    # Remove last character
+                    self.player_name = self.player_name[:-1]
+                else:
+                    # Add character (limit to 20 characters)
+                    if len(self.player_name) < 20:
+                        char = event.unicode
+                        if char.isprintable():
+                            self.player_name += char
 
     def update(self, dt):
         """No updates needed."""
         pass
 
     def draw(self, surface):
-        """Draw victory screen with input box and buttons."""
+        """Draw victory or defeat screen with appropriate elements."""
         # Draw background
         if self.bg:
             surface.blit(self.bg, (0, 0))
         else:
             surface.fill((20, 30, 20))
 
-        # Draw title
-        title = self.font_title.render("VICTORY!", True, (255, 255, 100))
-        tw = title.get_width()
-        surface.blit(title, ((self.screen_width - tw) // 2, 80))
+        if self.is_defeated:
+            # DEFEATED state - show only title and navigation buttons
+            title = self.font_title.render("DEFEATED", True, (255, 50, 50))
+            tw = title.get_width()
+            surface.blit(title, ((self.screen_width - tw) // 2, 80))
 
-        # Draw turn count
-        turns_text = self.font_text.render(f"Total Run Turns: {self.boss_turns}", True, (255, 255, 255))
-        ttw = turns_text.get_width()
-        surface.blit(turns_text, ((self.screen_width - ttw) // 2, 170))
-
-        # Draw input prompt
-        if not self.saved:
-            prompt = self.font_text.render("Enter Your Name:", True, (255, 255, 255))
-            pw = prompt.get_width()
-            surface.blit(prompt, ((self.screen_width - pw) // 2, 230))
-
-            # Draw input box
-            box_color = self.input_color_active if self.input_active else self.input_color_inactive
-            pygame.draw.rect(surface, box_color, self.input_box, 2)
-            pygame.draw.rect(surface, (30, 30, 30), self.input_box.inflate(-4, -4))
-
-            # Draw input text
-            input_surf = self.font_input.render(self.player_name, True, (255, 255, 255))
-            surface.blit(input_surf, (self.input_box.x + 10, self.input_box.y + 8))
-
-            # Draw cursor (blinking effect)
-            if pygame.time.get_ticks() % 1000 < 500:
-                cursor_x = self.input_box.x + 10 + input_surf.get_width() + 2
-                cursor_y = self.input_box.y + 8
-                pygame.draw.line(surface, (255, 255, 255), 
-                               (cursor_x, cursor_y), 
-                               (cursor_x, cursor_y + 24), 2)
+            # Center the navigation buttons for defeated state
+            cx = self.screen_width // 2
+            
+            # Draw Main Menu button (centered)
+            menu_btn_rect = pygame.Rect(0, 0, 180, 48)
+            menu_btn_rect.center = (cx, 250)
+            self.menu_btn.rect = menu_btn_rect
+            self.menu_btn.text_rect = self.menu_btn.text_surface.get_rect(center=menu_btn_rect.center)
+            self.menu_btn.draw(surface)
+            
+            # Draw Quit Game button (centered)
+            quit_btn_rect = pygame.Rect(0, 0, 180, 48)
+            quit_btn_rect.center = (cx, 320)
+            self.quit_btn.rect = quit_btn_rect
+            self.quit_btn.text_rect = self.quit_btn.text_surface.get_rect(center=quit_btn_rect.center)
+            self.quit_btn.draw(surface)
         else:
-            # Show saved message
-            saved_msg = self.font_text.render("Score Saved!", True, (100, 255, 100))
-            smw = saved_msg.get_width()
-            surface.blit(saved_msg, ((self.screen_width - smw) // 2, 250))
+            # VICTORY state - show full UI with score input
+            title = self.font_title.render("VICTORY!", True, (255, 255, 100))
+            tw = title.get_width()
+            surface.blit(title, ((self.screen_width - tw) // 2, 80))
 
-        # Draw buttons
-        if not self.saved:
-            self.save_btn.draw(surface)
-        self.menu_btn.draw(surface)
-        self.quit_btn.draw(surface)
+            # Draw turn count
+            turns_text = self.font_text.render(f"Total Run Turns: {self.boss_turns}", True, (255, 255, 255))
+            ttw = turns_text.get_width()
+            surface.blit(turns_text, ((self.screen_width - ttw) // 2, 170))
+
+            # Draw input prompt
+            if not self.saved:
+                prompt = self.font_text.render("Enter Your Name:", True, (255, 255, 255))
+                pw = prompt.get_width()
+                surface.blit(prompt, ((self.screen_width - pw) // 2, 230))
+
+                # Draw input box
+                box_color = self.input_color_active if self.input_active else self.input_color_inactive
+                pygame.draw.rect(surface, box_color, self.input_box, 2)
+                pygame.draw.rect(surface, (30, 30, 30), self.input_box.inflate(-4, -4))
+
+                # Draw input text
+                input_surf = self.font_input.render(self.player_name, True, (255, 255, 255))
+                surface.blit(input_surf, (self.input_box.x + 10, self.input_box.y + 8))
+
+                # Draw cursor (blinking effect)
+                if pygame.time.get_ticks() % 1000 < 500:
+                    cursor_x = self.input_box.x + 10 + input_surf.get_width() + 2
+                    cursor_y = self.input_box.y + 8
+                    pygame.draw.line(surface, (255, 255, 255), 
+                                   (cursor_x, cursor_y), 
+                                   (cursor_x, cursor_y + 24), 2)
+            else:
+                # Show saved message
+                saved_msg = self.font_text.render("Score Saved!", True, (100, 255, 100))
+                smw = saved_msg.get_width()
+                surface.blit(saved_msg, ((self.screen_width - smw) // 2, 250))
+
+            # Draw buttons
+            if not self.saved:
+                self.save_btn.draw(surface)
+            self.menu_btn.draw(surface)
+            self.quit_btn.draw(surface)

@@ -13,7 +13,7 @@ class CrossroadsScreen(ScreenBase):
         
         # Load background
         base_path = os.path.dirname(__file__)
-        img_path = os.path.join(base_path, "..", "..", "assets", "ui", "MainMenu.jpg")
+        img_path = os.path.join(base_path, "..", "..", "assets", "battlefield", "basecamp.png")
         try:
             self.bg = pygame.image.load(img_path).convert()
             self.bg = pygame.transform.scale(self.bg, screen_size)

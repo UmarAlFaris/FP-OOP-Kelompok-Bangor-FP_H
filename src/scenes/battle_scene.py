@@ -398,6 +398,8 @@ class TurnBasedGrid(ScreenBase):
                 break
         # check results
         if self.player.hp <= 0:
+            # Sync the death state (HP <= 0) to the manager so EndMenu knows we died
+            self.manager.update_player_state(self.player.hp, self.player.mana)
             self.manager.go_to('end_menu')
             return
         if all(not e.alive for e in self.enemies):
@@ -489,8 +491,7 @@ class TurnBasedGrid(ScreenBase):
                         self.enemy_frames.append(frames)
                         self.enemy_anim_indexes.append(0)
                         self.enemy_anim_timers.append(0)
-                    # restore player HP
-                    self.player.hp = self.player.max_hp
+                    # Player HP persists between stages (no auto-heal)
                     self.turn = 'PLAYER'
                     self.mode = 'IDLE'
                     self.message = f'Stage {self.stage_index+1}: {type(self.enemies[0]).__name__}. ATK={self.player.atk}. M:move A:attack H:heal'
@@ -600,6 +601,8 @@ class TurnBasedGrid(ScreenBase):
                         e.mana -= heal_cost
 
             if self.player.hp <= 0:
+                # Sync the death state (HP <= 0) to the manager so EndMenu knows we died
+                self.manager.update_player_state(self.player.hp, self.player.mana)
                 self.manager.go_to('end_menu')
                 return
             if all(not e.alive for e in self.enemies):

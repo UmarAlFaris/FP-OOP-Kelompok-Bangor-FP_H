@@ -15,18 +15,18 @@ class Zombie(Monster):
     """Zombie enemy - high HP, moderate attack."""
     
     def __init__(self, x, y):
-        super().__init__(x, y, hp=20, atk=3, mana=0)
+        super().__init__(x, y, hp=20, atk=5, mana=20)
 
 
 class Skeleton(Monster):
     """Skeleton enemy - low HP, low attack."""
     
     def __init__(self, x, y):
-        super().__init__(x, y, hp=14, atk=1, mana=0)
+        super().__init__(x, y, hp=15, atk=3, mana=20)
 
 
 class Enderman(Monster):
     """Enderman enemy - high HP, high attack, has mana."""
     
     def __init__(self, x, y):
-        super().__init__(x, y, hp=24, atk=4, mana=80)
+        super().__init__(x, y, hp=64, atk=25, mana=100)

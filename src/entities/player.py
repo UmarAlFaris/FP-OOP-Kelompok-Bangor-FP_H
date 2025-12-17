@@ -9,16 +9,16 @@ class Player(Entity):
         # Use persistent stats from manager if provided, otherwise use defaults
         if stats is not None:
             level = stats.get('level', 1)
-            hp = stats.get('hp', 20)
-            max_hp = stats.get('max_hp', 20)
+            hp = stats.get('hp', 25)
+            max_hp = stats.get('max_hp', 25)
             atk = stats.get('atk', 5)
             mana = stats.get('mana', 100)
             max_mana = stats.get('max_mana', 100)
         else:
             # Default fallback values
             level = 1
-            hp = 20
-            max_hp = 20
+            hp = 25
+            max_hp = 25
             atk = 5
             mana = 100
             max_mana = 100
