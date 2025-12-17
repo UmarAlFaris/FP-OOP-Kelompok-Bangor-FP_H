@@ -16,8 +16,12 @@ class TurnBasedGrid(ScreenBase):
     Supports either `enemies` (list of dicts for simultaneous multi-enemy)
     or `stages` (list of enemy type names for sequential single-enemy stages).
     """
-    def __init__(self, manager, screen_size, enemies: list[dict] = None, stages: list[str] = None, next_scene=None, forced_inference=None):
+    def __init__(self, manager, screen_size, enemies: list[dict] = None, stages: list[str] = None, next_scene=None, forced_inference=None, reward_levels=0, is_miniboss=False):
         super().__init__(manager, screen_size)
+        
+        # RPG parameters
+        self.reward_levels = reward_levels
+        self.is_miniboss = is_miniboss
 
         self.FRAME_COUNTS = {
             'Zombie': 6,
@@ -33,8 +37,8 @@ class TurnBasedGrid(ScreenBase):
         self.origin_x = 0
         self.origin_y = 0
 
-        # player
-        self.player = Player(1, self.grid_h // 2)
+        # player - use persistent stats from manager
+        self.player = Player(1, self.grid_h // 2, stats=self.manager.player_stats)
         
         # boss damage boost
         if stages and 'Boss' in stages:
@@ -216,7 +220,7 @@ class TurnBasedGrid(ScreenBase):
         self.cursor = [0,0]
         self.turn = 'PLAYER'
         self.move_range = 2
-        self.turn_count = 0  # track turn number
+        self.turn_count = 0  # track turn number for current battle
 
         # Use fuzzy logic module (already imported at module level)
         self.fuzzy = fuzzy
@@ -244,6 +248,10 @@ class TurnBasedGrid(ScreenBase):
         self.buttons[1].tooltip = "Attack an enemy in range."
         self.buttons[2].tooltip = "Heal yourself (costs 20 Mana)."
         self.buttons[3].tooltip = "End your turn."
+
+    def on_enter(self):
+        """Reset local turn counter when battle starts (global counter keeps accumulating)."""
+        self.turn_count = 0
 
     # STEP 2: Button callback methods
     def btn_move(self):
@@ -367,7 +375,8 @@ class TurnBasedGrid(ScreenBase):
         self.mode = 'IDLE'
         self.move_targets = set()
         self.message = 'Giliran ENEMY.'
-        self.turn_count += 1  # increment turn counter
+        self.turn_count += 1  # increment local turn counter
+        self.manager.total_run_turns += 1  # increment global turn counter
         
         # auto-win for Enderman at turn 20
         if self.turn_count >= 20 and self.stages and any(type(e).__name__ == 'Enderman' for e in self.enemies if e.alive):
@@ -487,16 +496,30 @@ class TurnBasedGrid(ScreenBase):
                     self.message = f'Stage {self.stage_index+1}: {type(self.enemies[0]).__name__}. ATK={self.player.atk}. M:move A:attack H:heal'
                     return
                 else:
+                    # All stages complete - victory!
+                    self.manager.total_run_turns -= 1  # Refund the killing blow turn
+                    self.manager.update_player_state(self.player.hp, self.player.mana)
+                    self.manager.level_up(self.reward_levels)
+                    if self.is_miniboss:
+                        self.manager.miniboss_defeated = True
+                    # Use next_scene if provided (e.g., boss -> end_menu), else crossroads
                     if self.next_scene:
                         self.manager.go_to(self.next_scene)
                     else:
-                        self.manager.go_to('main_menu')
+                        self.manager.go_to('crossroads')
                     return
             else:
+                # All enemies dead (non-staged battle) - victory!
+                self.manager.total_run_turns -= 1  # Refund the killing blow turn
+                self.manager.update_player_state(self.player.hp, self.player.mana)
+                self.manager.level_up(self.reward_levels)
+                if self.is_miniboss:
+                    self.manager.miniboss_defeated = True
+                # Use next_scene if provided (e.g., boss -> end_menu), else crossroads
                 if self.next_scene:
                     self.manager.go_to(self.next_scene)
                 else:
-                    self.manager.go_to('main_menu')
+                    self.manager.go_to('crossroads')
                 return
         # back to player
         self.turn = 'PLAYER'
@@ -657,14 +680,20 @@ class TurnBasedGrid(ScreenBase):
         surface.blit(self.font.render(info, True, (255,255,255)), (8, self.grid_h*self.tile + 6))
         surface.blit(self.font.render(self.message, True, (230,200,60)), (8, self.grid_h*self.tile + 30))
         # turn counter in bottom right
-        turn_text = f'Turn Count: {self.turn_count}'
+        turn_text = f'Total Turns: {self.manager.total_run_turns}'
         turn_surf = self.font.render(turn_text, True, (100, 255, 255))
         surface.blit(turn_surf, (self.screen_width - 200, self.grid_h*self.tile + 6))
         
-        # Player stats (HP and Mana) display
-        stats_text = f"Player HP: {self.player.hp}/{self.player.max_hp} | Mana: {self.player.mana}"
+        # Player stats (Level, HP and Mana) display
+        stats_text = f"Lv. {self.player.level} | HP: {self.player.hp}/{self.player.max_hp} | ATK: {self.player.atk} | Mana: {self.player.mana}"
         stats_surf = self.font.render(stats_text, True, (100, 255, 100))
         surface.blit(stats_surf, (8, self.grid_h*self.tile + 90))
+        
+        # Draw level indicator above player sprite
+        level_text = f"Lv.{self.player.level}"
+        level_surf = self.font_small.render(level_text, True, (255, 215, 0))
+        level_rect = level_surf.get_rect(midbottom=(px + self.tile//2, py - 40))
+        surface.blit(level_surf, level_rect)
         
         # STEP 4.1: Draw buttons
         for b in self.buttons:

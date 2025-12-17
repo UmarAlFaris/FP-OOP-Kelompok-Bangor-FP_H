@@ -5,6 +5,10 @@ class ScreenBase:
         self.manager = manager
         self.screen_width, self.screen_height = screen_size
 
+    def on_enter(self):
+        """Called when this screen becomes active. Override to refresh data."""
+        pass
+
     def handle_event(self, event):
         raise NotImplementedError
 
