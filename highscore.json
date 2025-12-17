@@ -2,5 +2,9 @@
   {
     "name": "TestPlayer1",
     "turns": 15
+  },
+  {
+    "name": "Hadidan",
+    "turns": 59
   }
 ]

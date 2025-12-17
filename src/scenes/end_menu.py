@@ -39,10 +39,14 @@ class EndMenuScreen(ScreenBase):
         self.input_color_active = (100, 200, 255)
         self.input_color_inactive = (150, 150, 150)
 
-        # Buttons
-        self.save_btn = Button("Save Score", (cx - 110, 380), (180, 48), self.save_score, self.font_button)
-        self.menu_btn = Button("Main Menu", (cx + 110, 380), (180, 48), self.back_to_menu, self.font_button)
-        self.quit_btn = Button("Quit Game", (cx, 460), (180, 48), self.quit_game, self.font_button)
+        # Buttons - spaced vertically to avoid overlap
+        btn_width = 200
+        btn_height = 48
+        btn_spacing = 60  # vertical spacing between buttons
+        
+        self.save_btn = Button("Save Score", (cx, 350), (btn_width, btn_height), self.save_score, self.font_button)
+        self.menu_btn = Button("Main Menu", (cx, 350 + btn_spacing), (btn_width, btn_height), self.back_to_menu, self.font_button)
+        self.quit_btn = Button("Quit Game", (cx, 350 + btn_spacing * 2), (btn_width, btn_height), self.quit_game, self.font_button)
 
     def on_enter(self):
         """Called when screen becomes active. Fetch total run turns and reset state."""
@@ -215,10 +219,33 @@ class EndMenuScreen(ScreenBase):
                 # Show saved message
                 saved_msg = self.font_text.render("Score Saved!", True, (100, 255, 100))
                 smw = saved_msg.get_width()
-                surface.blit(saved_msg, ((self.screen_width - smw) // 2, 250))
+                surface.blit(saved_msg, ((self.screen_width - smw) // 2, 280))
 
-            # Draw buttons
+            # Draw buttons - reposition based on state
+            cx = self.screen_width // 2
+            btn_width = 200
+            btn_height = 48
+            btn_spacing = 60
+            
             if not self.saved:
+                # All three buttons vertically stacked
+                self.save_btn.rect.center = (cx, 350)
+                self.save_btn.text_rect = self.save_btn.text_surface.get_rect(center=self.save_btn.rect.center)
                 self.save_btn.draw(surface)
-            self.menu_btn.draw(surface)
-            self.quit_btn.draw(surface)
+                
+                self.menu_btn.rect.center = (cx, 350 + btn_spacing)
+                self.menu_btn.text_rect = self.menu_btn.text_surface.get_rect(center=self.menu_btn.rect.center)
+                self.menu_btn.draw(surface)
+                
+                self.quit_btn.rect.center = (cx, 350 + btn_spacing * 2)
+                self.quit_btn.text_rect = self.quit_btn.text_surface.get_rect(center=self.quit_btn.rect.center)
+                self.quit_btn.draw(surface)
+            else:
+                # Only menu and quit buttons, repositioned after save
+                self.menu_btn.rect.center = (cx, 350)
+                self.menu_btn.text_rect = self.menu_btn.text_surface.get_rect(center=self.menu_btn.rect.center)
+                self.menu_btn.draw(surface)
+                
+                self.quit_btn.rect.center = (cx, 350 + btn_spacing)
+                self.quit_btn.text_rect = self.quit_btn.text_surface.get_rect(center=self.quit_btn.rect.center)
+                self.quit_btn.draw(surface)
