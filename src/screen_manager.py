@@ -73,6 +73,10 @@ class ScreenManager:
             import pygame
             pygame.quit()
             raise SystemExit
+        
+        # Call on_exit on the current screen before switching
+        if self.current_screen and hasattr(self.current_screen, 'on_exit'):
+            self.current_screen.on_exit()
 
         self.current_screen = self.screens[name]
         

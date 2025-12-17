@@ -229,6 +229,36 @@ class TurnBasedGrid(ScreenBase):
         self.turn = 'PLAYER'
         self.move_range = 2
         self.turn_count = 0  # track turn number for current battle
+        
+        # Load sound effects
+        sounds_dir = os.path.join(repo, 'assets', 'sounds')
+        self.sounds = {}
+        sound_files = {
+            'player_attack': 'Player_attack.mp3',
+            'heal': 'Heal.mp3',
+            'zombie_spawn': 'Zombie_spawn.mp3',
+            'zombie_attack': 'Zombie_attack.mp3',
+            'skeleton_spawn': 'Skeleton_spawn.mp3',
+            'skeleton_attack': 'Skeleton_attack.mp3',
+            'enderman_spawn': 'Enderman_spawn.mp3',
+            'enderman_attack': 'Enderman_attack.mp3',
+            'enderman_teleport': 'Enderman_teleport.mp3',
+            'boss_spawn': 'Boss_spawn.mp3',
+            'boss_attack': 'Boss_attack.mp3',
+        }
+        for key, filename in sound_files.items():
+            try:
+                sound_path = os.path.join(sounds_dir, filename)
+                self.sounds[key] = pygame.mixer.Sound(sound_path)
+            except FileNotFoundError:
+                print(f"Warning: Sound file not found: {filename}")
+                self.sounds[key] = None
+            except Exception as e:
+                print(f"Warning: Could not load sound {filename}: {e}")
+                self.sounds[key] = None
+        
+        # Play spawn sound for initial enemies
+        self._play_spawn_sounds()
 
         # Use fuzzy logic module (already imported at module level)
         self.fuzzy = fuzzy
@@ -256,6 +286,21 @@ class TurnBasedGrid(ScreenBase):
         self.buttons[1].tooltip = "Attack an enemy in range."
         self.buttons[2].tooltip = "Heal yourself (costs 20 Mana)."
         self.buttons[3].tooltip = "End your turn."
+    
+    def _play_spawn_sounds(self):
+        """Play spawn sounds for all current enemies."""
+        for e in self.enemies:
+            if not e.alive:
+                continue
+            etype = type(e).__name__.lower()
+            sound_key = f"{etype}_spawn"
+            if sound_key in self.sounds and self.sounds[sound_key]:
+                self.sounds[sound_key].play()
+    
+    def _play_sound(self, key):
+        """Play a sound effect by key if it exists."""
+        if key in self.sounds and self.sounds[key]:
+            self.sounds[key].play()
 
     def on_enter(self):
         """Reset local turn counter when battle starts (global counter keeps accumulating)."""
@@ -348,6 +393,7 @@ class TurnBasedGrid(ScreenBase):
         elif self.mode == 'ATTACK':
             target = self.unit_at((cx, cy))
             if target and target.team != 'PLAYER' and abs(self.player.x-cx)+abs(self.player.y-cy) == 1:
+                self._play_sound('player_attack')
                 target.take_damage(self.player.atk)
                 if target.hp <= 0:
                     target.alive = False
@@ -364,6 +410,7 @@ class TurnBasedGrid(ScreenBase):
             # STEP 3.1: Player Heal with Mana cost check
             old_hp = self.player.hp
             if self.player.heal(PLAYER_HEAL_AMOUNT, PLAYER_HEAL_COST):
+                self._play_sound('heal')
                 healed = self.player.hp - old_hp
                 self.message = f'Player healed +{healed} HP. HP: {self.player.hp}/{self.player.max_hp}. Mana: {self.player.mana}.'
                 self.mode = 'IDLE'
@@ -501,6 +548,8 @@ class TurnBasedGrid(ScreenBase):
                     self.turn = 'PLAYER'
                     self.mode = 'IDLE'
                     self.message = f'Stage {self.stage_index+1}: {type(self.enemies[0]).__name__}. ATK={self.player.atk}. M:move A:attack H:heal'
+                    # Play spawn sound for the new enemy
+                    self._play_spawn_sounds()
                     return
                 else:
                     # All stages complete - victory!
@@ -548,15 +597,24 @@ class TurnBasedGrid(ScreenBase):
                 action, target = ('MOVE_CLOSE', None)
         else:
             action, target = ('MOVE_CLOSE', None)
+        
+        # Get enemy type for sound keys
+        etype = type(e).__name__.lower()
+        
         if action in ('ATTACK', 'RANGED_ATTACK'):
             if abs(e.x - self.player.x) + abs(e.y - self.player.y) <= 2:
+                self._play_sound(f"{etype}_attack")
                 self.player.hp -= e.atk
         elif action in ('MOVE_CLOSE', 'MOVE_RETREAT', 'TELEPORT'):
             if target and target not in occupied:
+                # Play teleport sound for Enderman on move/teleport actions
+                if etype == 'enderman' and action in ('MOVE_CLOSE', 'MOVE_RETREAT', 'TELEPORT'):
+                    self._play_sound('enderman_teleport')
                 e.x, e.y = target
         elif action == 'HEAL':
             # STEP 3.2: Enemy Heal with Mana cost check
             if e.mana >= ENEMY_HEAL_COST:
+                self._play_sound('heal')
                 e.hp = min(e.max_hp, e.hp + ENEMY_HEAL_AMOUNT)
                 e.mana -= ENEMY_HEAL_COST
                 print(f"{type(e).__name__} healed +{ENEMY_HEAL_AMOUNT} HP. Mana: {e.mana}")

@@ -44,6 +44,21 @@ class CrossroadsScreen(ScreenBase):
         self.buttons[1].tooltip = "Hard! Reward: +3 Lv, Unlocks Boss"
         self.buttons[2].tooltip = "Final Battle! Requires Miniboss Defeated"
         self.buttons[3].tooltip = "Return to Main Menu"
+        
+        # Load background music
+        self.music_path = os.path.join(base_path, "..", "..", "assets", "sounds", "Castle In The Mist.mp3")
+    
+    def on_enter(self):
+        """Called when entering the crossroads screen - play background music."""
+        try:
+            pygame.mixer.music.load(self.music_path)
+            pygame.mixer.music.play(loops=-1)
+        except Exception as e:
+            print(f"Warning: Could not load background music: {e}")
+    
+    def on_exit(self):
+        """Called when leaving the crossroads screen - stop background music."""
+        pygame.mixer.music.stop()
     
     def start_hunt(self):
         self.manager.start_hunt()
