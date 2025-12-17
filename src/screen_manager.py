@@ -1,14 +1,6 @@
 import random
 from scenes.main_menu import MainMenuScreen
-from scenes.S1_Scene_Opening import Scene1
-from scenes.S2_Scene_RuangRapat import Scene2
-from scenes.S3_Game_Kroco_Fight import SceneKroco
-from scenes.S4_Scene_StorageRoom_1 import Scene4
-from scenes.S5_Scene_StorageRoom_2 import Scene5
-from scenes.S6_Game_MiniBoss_Fight import Scene6
-from scenes.S7_Scene_Adzan_Subuh import Scene7
-from scenes.S8_Game_Boss_Fight import SceneBoss
-from scenes.S_end_menu import EndMenuScreen
+from scenes.end_menu import EndMenuScreen
 from scenes.high_score import HighScoreScreen
 from scenes.crossroads import CrossroadsScreen
 
@@ -25,17 +17,9 @@ class ScreenManager:
 
     def _register_screens(self):
         self.screens["main_menu"] = MainMenuScreen(self, self.screen_size)
-        self.screens["scene_1"] = Scene1(self, self.screen_size)
-        self.screens["scene_2"] = Scene2(self, self.screen_size)
-        self.screens["scene_3"] = SceneKroco(self, self.screen_size, next_scene='scene_4')
-        self.screens["scene_4"] = Scene4(self, self.screen_size)
-        self.screens["scene_5"] = Scene5(self, self.screen_size)
-        self.screens["scene_6"] = Scene6(self, self.screen_size)
-        self.screens["scene_7"] = Scene7(self, self.screen_size)
-        self.screens["scene_8"] = SceneBoss(self, self.screen_size)
-        self.screens["end_menu"] = EndMenuScreen(self, self.screen_size)
-        self.screens["high_score"] = HighScoreScreen(self, self.screen_size)
         self.screens["crossroads"] = CrossroadsScreen(self, self.screen_size)
+        self.screens["high_score"] = HighScoreScreen(self, self.screen_size)
+        self.screens["end_menu"] = EndMenuScreen(self, self.screen_size)
 
         self.go_to("main_menu")
 
@@ -62,7 +46,7 @@ class ScreenManager:
 
     def start_hunt(self):
         """Battle Factory: Start a random hunt with 3 stages, reward +1 level."""
-        from scenes.fight_tactical import TurnBasedGrid
+        from scenes.battle_scene import TurnBasedGrid
         enemy_types = ['Zombie', 'Skeleton', 'Zombie']
         random.shuffle(enemy_types)
         battle = TurnBasedGrid(self, self.screen_size, stages=enemy_types, reward_levels=1)
@@ -71,8 +55,15 @@ class ScreenManager:
 
     def start_miniboss(self):
         """Battle Factory: Start miniboss fight, reward +3 levels, unlocks boss."""
-        from scenes.fight_tactical import TurnBasedGrid
+        from scenes.battle_scene import TurnBasedGrid
         battle = TurnBasedGrid(self, self.screen_size, stages=['Enderman'], reward_levels=3, is_miniboss=True)
+        self.screens['battle'] = battle
+        self.go_to('battle')
+
+    def start_boss(self):
+        """Battle Factory: Start boss fight, next scene is end_menu."""
+        from scenes.battle_scene import TurnBasedGrid
+        battle = TurnBasedGrid(self, self.screen_size, stages=['Boss'], is_miniboss=False, next_scene='end_menu')
         self.screens['battle'] = battle
         self.go_to('battle')
 

@@ -54,7 +54,7 @@ class CrossroadsScreen(ScreenBase):
     def start_boss(self):
         # Only allow if miniboss is defeated
         if self.manager.miniboss_defeated:
-            self.manager.go_to('scene_8')
+            self.manager.start_boss()
     
     def go_main_menu(self):
         self.manager.go_to('main_menu')
