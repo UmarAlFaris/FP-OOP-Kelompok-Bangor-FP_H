@@ -781,6 +781,37 @@ class TurnBasedGrid(ScreenBase):
         self.player_anim_timer = 0
         self.player_anim_speed = 8
 
+        # Load battlefield background images
+        self.battlefield_bg = None
+        self.boss_battle_bg = None
+        try:
+            battlefield_path = os.path.join(repo, 'assets', 'battlefield', 'battlefield_grid.png')
+            if os.path.isfile(battlefield_path):
+                bg_img = pygame.image.load(battlefield_path).convert()
+                # Scale to fit grid area
+                grid_width = self.grid_w * self.tile
+                grid_height = self.grid_h * self.tile
+                self.battlefield_bg = pygame.transform.scale(bg_img, (grid_width, grid_height))
+                print(f"✓ Loaded battlefield background from {battlefield_path}")
+            else:
+                print(f"✗ Battlefield background not found at {battlefield_path}")
+        except Exception as ex:
+            print(f"✗ Failed loading battlefield background: {ex}")
+        
+        try:
+            boss_path = os.path.join(repo, 'assets', 'battlefield', 'boss_battle.png')
+            if os.path.isfile(boss_path):
+                boss_img = pygame.image.load(boss_path).convert()
+                # Scale to fit grid area
+                grid_width = self.grid_w * self.tile
+                grid_height = self.grid_h * self.tile
+                self.boss_battle_bg = pygame.transform.scale(boss_img, (grid_width, grid_height))
+                print(f"✓ Loaded boss battle background from {boss_path}")
+            else:
+                print(f"✗ Boss battle background not found at {boss_path}")
+        except Exception as ex:
+            print(f"✗ Failed loading boss battle background: {ex}")
+
         # load enemy animated frames per enemy
         self.enemy_frames = []
         self.enemy_anim_indexes = []
@@ -1160,13 +1191,20 @@ class TurnBasedGrid(ScreenBase):
 
     def draw(self, surface):
         surface.fill((20,20,20))
-        # grid
-        for x in range(self.grid_w):
-            for y in range(self.grid_h):
-                rx = self.origin_x + x * self.tile
-                ry = self.origin_y + y * self.tile
-                rect = pygame.Rect(rx, ry, self.tile, self.tile)
-                pygame.draw.rect(surface, (80,80,80), rect, 1)
+        # Draw battlefield background based on enemy type
+        is_boss_fight = any(e.get('type') == 'Boss' and e.get('alive') for e in self.enemies)
+        if is_boss_fight and self.boss_battle_bg:
+            surface.blit(self.boss_battle_bg, (self.origin_x, self.origin_y))
+        elif self.battlefield_bg:
+            surface.blit(self.battlefield_bg, (self.origin_x, self.origin_y))
+        else:
+            # Fallback to grid drawing if images not loaded
+            for x in range(self.grid_w):
+                for y in range(self.grid_h):
+                    rx = self.origin_x + x * self.tile
+                    ry = self.origin_y + y * self.tile
+                    rect = pygame.Rect(rx, ry, self.tile, self.tile)
+                    pygame.draw.rect(surface, (80,80,80), rect, 1)
 
         # move target highlights
         if self.mode == 'MOVE' and self.move_targets:
