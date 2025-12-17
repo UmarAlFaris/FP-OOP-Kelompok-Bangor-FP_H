@@ -6,6 +6,7 @@ from config import *
 from entities.unit import Unit
 from ai import fuzzy_logic as fuzzy
 from utils import scale_preserve, bfs_reachable
+from ui.button import Button
 
 
 class TurnBasedGrid(ScreenBase):
@@ -211,13 +212,62 @@ class TurnBasedGrid(ScreenBase):
         self.fuzzy = fuzzy
 
         self.font = pygame.font.SysFont(None, 24)
+        self.font_small = pygame.font.SysFont(None, 20)  # STEP 1.2: font for tooltips
         # gameplay state
         self.mode = 'IDLE'
         self.move_targets = set()
         self.message = 'Giliran PLAYER. Tekan M:move A:attack H:heal E:end.'
         self.units = [self.player] + self.enemies
+        
+        # STEP 1.3: Create action buttons with tooltips
+        button_y = self.grid_h * self.tile + 80
+        button_spacing = 150
+        button_start_x = 500
+        self.buttons = [
+            Button("Move (M)", (button_start_x, button_y), (130, 40), self.btn_move, self.font),
+            Button("Attack (A)", (button_start_x + button_spacing, button_y), (130, 40), self.btn_attack, self.font),
+            Button("Heal (H)", (button_start_x + button_spacing * 2, button_y), (130, 40), self.btn_heal, self.font),
+            Button("End Turn (E)", (button_start_x + button_spacing * 3, button_y), (130, 40), self.btn_end, self.font),
+        ]
+        # Assign tooltips to each button
+        self.buttons[0].tooltip = "Move your character to an adjacent tile."
+        self.buttons[1].tooltip = "Attack an enemy in range."
+        self.buttons[2].tooltip = "Heal yourself (costs 20 Mana)."
+        self.buttons[3].tooltip = "End your turn."
+
+    # STEP 2: Button callback methods
+    def btn_move(self):
+        if self.turn != 'PLAYER':
+            return
+        self.mode = 'MOVE'
+        self.move_targets = bfs_reachable((self.player['x'], self.player['y']), self.move_range, {(e['x'],e['y']) for e in self.enemies if e['alive']})
+        self.message = 'Mode MOVE. Pilih petak tujuan lalu tekan Enter.'
+    
+    def btn_attack(self):
+        if self.turn != 'PLAYER':
+            return
+        self.mode = 'ATTACK'
+        self.message = 'Mode ATTACK. Pilih petak musuh bersebelahan lalu Enter.'
+    
+    def btn_heal(self):
+        if self.turn != 'PLAYER':
+            return
+        if self.player['mana'] >= 20:
+            self.mode = 'HEAL'
+            self.message = 'Mode HEAL. Tekan Enter untuk heal (+10 HP, costs 20 Mana).'
+        else:
+            self.message = 'Not enough Mana for Heal! Need 20 Mana.'
+    
+    def btn_end(self):
+        if self.turn != 'PLAYER':
+            return
+        self.end_turn()
 
     def handle_event(self, event):
+        # STEP 5: Handle button events
+        for b in self.buttons:
+            b.handle_event(event)
+        
         if event.type == pygame.KEYDOWN:
             # cursor keys
             if event.key in (pygame.K_RIGHT, pygame.K_d): self.cursor[0] = min(self.grid_w-1, self.cursor[0]+1)
@@ -285,13 +335,20 @@ class TurnBasedGrid(ScreenBase):
             else:
                 self.message = 'Target tidak valid untuk ATTACK.'
         elif self.mode == 'HEAL':
-            heal_amount = 10
-            old_hp = self.player['hp']
-            self.player['hp'] = min(self.player['max_hp'], self.player['hp'] + heal_amount)
-            healed = self.player['hp'] - old_hp
-            self.message = f'Player healed +{healed} HP. HP: {self.player["hp"]}/{self.player["max_hp"]}.'
-            self.mode = 'IDLE'
-            self.end_turn()
+            # STEP 3.1: Player Heal with Mana cost check
+            heal_cost = 20
+            if self.player['mana'] >= heal_cost:
+                heal_amount = 10
+                old_hp = self.player['hp']
+                self.player['hp'] = min(self.player['max_hp'], self.player['hp'] + heal_amount)
+                self.player['mana'] -= heal_cost
+                healed = self.player['hp'] - old_hp
+                self.message = f'Player healed +{healed} HP. HP: {self.player["hp"]}/{self.player["max_hp"]}. Mana: {self.player["mana"]}.'
+                self.mode = 'IDLE'
+                self.end_turn()
+            else:
+                self.message = f'Not enough Mana! Need {heal_cost}, have {self.player["mana"]}.'
+                self.mode = 'IDLE'
         else:
             self.message = 'Tidak ada aksi dipilih. Tekan M/A/H atau E untuk end turn.'
 
@@ -456,7 +513,13 @@ class TurnBasedGrid(ScreenBase):
             if target and target not in occupied:
                 e['x'], e['y'] = target
         elif action == 'HEAL':
-            e['hp'] = min(e['max_hp'], e['hp'] + e.get('heal_amount', 10))
+            # STEP 3.2: Enemy Heal with Mana cost check
+            heal_cost = e.get('heal_cost', 20)
+            if e.get('mana', 0) >= heal_cost:
+                heal_amount = e.get('heal_amount', 10)
+                e['hp'] = min(e['max_hp'], e['hp'] + heal_amount)
+                e['mana'] -= heal_cost
+                print(f"{e['type']} healed +{heal_amount} HP. Mana: {e['mana']}")
 
     def update(self, dt):
         # advance animations
@@ -494,7 +557,12 @@ class TurnBasedGrid(ScreenBase):
                     if target and target not in occupied:
                         e['x'], e['y'] = target
                 elif action == 'HEAL':
-                    e['hp'] = min(e['max_hp'], e['hp'] + getattr(e,'heal_amount',10))
+                    # STEP 3.2: Enemy Heal with Mana cost check (update method)
+                    heal_cost = e.get('heal_cost', 20)
+                    if e.get('mana', 0) >= heal_cost:
+                        heal_amount = e.get('heal_amount', 10)
+                        e['hp'] = min(e['max_hp'], e['hp'] + heal_amount)
+                        e['mana'] -= heal_cost
 
             if self.player['hp'] <= 0:
                 self.manager.go_to('end_menu')
@@ -580,3 +648,27 @@ class TurnBasedGrid(ScreenBase):
         turn_text = f'Turn Count: {self.turn_count}'
         turn_surf = self.font.render(turn_text, True, (100, 255, 255))
         surface.blit(turn_surf, (self.screen_width - 200, self.grid_h*self.tile + 6))
+        
+        # Player stats (HP and Mana) display
+        stats_text = f"Player HP: {self.player['hp']}/{self.player['max_hp']} | Mana: {self.player['mana']}"
+        stats_surf = self.font.render(stats_text, True, (100, 255, 100))
+        surface.blit(stats_surf, (8, self.grid_h*self.tile + 90))
+        
+        # STEP 4.1: Draw buttons
+        for b in self.buttons:
+            b.draw(surface)
+        
+        # STEP 4.2: Draw tooltips on hover
+        mx, my = pygame.mouse.get_pos()
+        for b in self.buttons:
+            if b.rect.collidepoint((mx, my)):
+                # Render tooltip above the button
+                tooltip_surf = self.font_small.render(b.tooltip, True, (255, 255, 200))
+                tooltip_rect = tooltip_surf.get_rect()
+                tooltip_rect.midbottom = (b.rect.centerx, b.rect.top - 5)
+                # Draw tooltip background
+                bg_rect = tooltip_rect.inflate(10, 6)
+                pygame.draw.rect(surface, (50, 50, 50), bg_rect, border_radius=4)
+                pygame.draw.rect(surface, (200, 200, 150), bg_rect, 1, border_radius=4)
+                surface.blit(tooltip_surf, tooltip_rect)
+                break  # Only show one tooltip at a time

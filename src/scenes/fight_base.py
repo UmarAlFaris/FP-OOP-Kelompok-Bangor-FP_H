@@ -53,9 +53,9 @@ class FightBase(ScreenBase):
         elif etype == 'Skeleton':
             hp = 14
         elif etype == 'Enderman':
-            hp = 24
+            hp = 20
         elif etype == 'Boss':
-            hp = 40
+            hp = 100
         else:
             hp = 20
 
