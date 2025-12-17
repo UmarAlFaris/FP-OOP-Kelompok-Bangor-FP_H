@@ -3,7 +3,9 @@ import pygame
 import os
 from scenes.base import ScreenBase
 from config import *
-from entities.unit import Unit
+from entities.player import Player
+from entities.enemies import Zombie, Skeleton, Enderman
+from entities.boss import Boss
 from ai import fuzzy_logic as fuzzy
 from utils import scale_preserve, bfs_reachable
 from ui.button import Button
@@ -32,11 +34,11 @@ class TurnBasedGrid(ScreenBase):
         self.origin_y = 0
 
         # player
-        self.player = {'type':'Player','x':1,'y':self.grid_h//2,'hp':40,'max_hp':40,'atk':8,'mana':100,'alive':True}
+        self.player = Player(1, self.grid_h // 2)
         
         # boss damage boost
         if stages and 'Boss' in stages:
-            self.player['atk'] += 5  # boost +5 ATK for boss fight
+            self.player.atk += 5  # boost +5 ATK for boss fight
 
         # support either simultaneous enemies or sequential stages
         self.stages = stages
@@ -51,24 +53,32 @@ class TurnBasedGrid(ScreenBase):
             etype = stages[0]
             ex = self.grid_w - 2
             ey = self.grid_h // 2
-            if etype == 'Zombie': hp, atk, mana = 20, 3, 0
-            elif etype == 'Skeleton': hp, atk, mana = 14, 1, 0
-            elif etype == 'Enderman': hp, atk, mana = 24, 4, 80
-            elif etype == 'Boss': hp, atk, mana = 40, 4, 100
-            else: hp, atk, mana = 20, 2, 0
-            self.enemies.append({'type':etype,'x':ex,'y':ey,'hp':hp,'max_hp':hp,'atk':atk,'mana':mana,'alive':True})
+            if etype == 'Zombie':
+                self.enemies.append(Zombie(ex, ey))
+            elif etype == 'Skeleton':
+                self.enemies.append(Skeleton(ex, ey))
+            elif etype == 'Enderman':
+                self.enemies.append(Enderman(ex, ey))
+            elif etype == 'Boss':
+                self.enemies.append(Boss(ex, ey))
+            else:
+                self.enemies.append(Zombie(ex, ey))  # default fallback
         else:
             enemies = enemies or []
             for e in enemies:
                 etype = e.get('type')
                 ex = e.get('x', self.grid_w-2)
                 ey = e.get('y', self.grid_h//2)
-                if etype == 'Zombie': hp, atk, mana = 20, 3, 0
-                elif etype == 'Skeleton': hp, atk, mana = 14, 1, 0
-                elif etype == 'Enderman': hp, atk, mana = 24, 4, 80
-                elif etype == 'Boss': hp, atk, mana = 40, 4, 100
-                else: hp, atk, mana = 20, 2, 0
-                self.enemies.append({'type':etype,'x':ex,'y':ey,'hp':hp,'max_hp':hp,'atk':atk,'mana':mana,'alive':True})
+                if etype == 'Zombie':
+                    self.enemies.append(Zombie(ex, ey))
+                elif etype == 'Skeleton':
+                    self.enemies.append(Skeleton(ex, ey))
+                elif etype == 'Enderman':
+                    self.enemies.append(Enderman(ex, ey))
+                elif etype == 'Boss':
+                    self.enemies.append(Boss(ex, ey))
+                else:
+                    self.enemies.append(Zombie(ex, ey))  # default fallback
 
         # load animated player frames
         repo = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -139,7 +149,7 @@ class TurnBasedGrid(ScreenBase):
         self.enemy_anim_indexes = []
         self.enemy_anim_timers = []
         for e in self.enemies:
-            et = e['type']
+            et = type(e).__name__
             name = et.lower()
             frames = []
             loaded = False
@@ -240,7 +250,7 @@ class TurnBasedGrid(ScreenBase):
         if self.turn != 'PLAYER':
             return
         self.mode = 'MOVE'
-        self.move_targets = bfs_reachable((self.player['x'], self.player['y']), self.move_range, {(e['x'],e['y']) for e in self.enemies if e['alive']})
+        self.move_targets = bfs_reachable((self.player.x, self.player.y), self.move_range, {(e.x, e.y) for e in self.enemies if e.alive})
         self.message = 'Mode MOVE. Pilih petak tujuan lalu tekan Enter.'
     
     def btn_attack(self):
@@ -252,7 +262,7 @@ class TurnBasedGrid(ScreenBase):
     def btn_heal(self):
         if self.turn != 'PLAYER':
             return
-        if self.player['mana'] >= 20:
+        if self.player.mana >= 20:
             self.mode = 'HEAL'
             self.message = 'Mode HEAL. Tekan Enter untuk heal (+10 HP, costs 20 Mana).'
         else:
@@ -277,7 +287,7 @@ class TurnBasedGrid(ScreenBase):
             # mode keys
             if event.key == pygame.K_m and self.turn == 'PLAYER':
                 self.mode = 'MOVE'
-                self.move_targets = bfs_reachable((self.player['x'], self.player['y']), self.move_range, {(e['x'],e['y']) for e in self.enemies if e['alive']})
+                self.move_targets = bfs_reachable((self.player.x, self.player.y), self.move_range, {(e.x, e.y) for e in self.enemies if e.alive})
                 self.message = 'Mode MOVE. Pilih petak tujuan lalu tekan Enter.'
             if event.key in (pygame.K_a, pygame.K_SPACE) and self.turn == 'PLAYER':
                 self.mode = 'ATTACK'
@@ -302,7 +312,7 @@ class TurnBasedGrid(ScreenBase):
 
     def unit_at(self, pos):
         for u in self.units:
-            if u.get('alive', True) and (u.get('x'), u.get('y')) == pos:
+            if u.alive and (u.x, u.y) == pos:
                 return u
         return None
 
@@ -312,7 +322,7 @@ class TurnBasedGrid(ScreenBase):
             return
         if self.mode == 'MOVE':
             if (cx, cy) in self.move_targets and self.unit_at((cx, cy)) is None:
-                self.player['x'], self.player['y'] = cx, cy
+                self.player.x, self.player.y = cx, cy
                 self.mode = 'IDLE'
                 self.move_targets = set()
                 self.message = f'Player moved to {cx},{cy}.'
@@ -321,15 +331,15 @@ class TurnBasedGrid(ScreenBase):
                 self.message = 'Lokasi tidak valid untuk MOVE.'
         elif self.mode == 'ATTACK':
             target = self.unit_at((cx, cy))
-            if target and target.get('type') != 'Player' and abs(self.player['x']-cx)+abs(self.player['y']-cy) == 1:
-                target['hp'] -= self.player['atk']
-                if target['hp'] <= 0:
-                    target['alive'] = False
+            if target and target.team != 'PLAYER' and abs(self.player.x-cx)+abs(self.player.y-cy) == 1:
+                target.take_damage(self.player.atk)
+                if target.hp <= 0:
+                    target.alive = False
                     # increment player damage on enemy defeat
-                    self.player['atk'] += 1
-                    self.message = f'Enemy {target["type"]} defeated. ATK +1 (now {self.player["atk"]}).'
+                    self.player.atk += 1
+                    self.message = f'Enemy {type(target).__name__} defeated. ATK +1 (now {self.player.atk}).'
                 else:
-                    self.message = f'Attack! Enemy HP: {max(0,target["hp"])}.'
+                    self.message = f'Attack! Enemy HP: {max(0,target.hp)}.'
                 self.mode = 'IDLE'
                 self.end_turn()
             else:
@@ -337,17 +347,15 @@ class TurnBasedGrid(ScreenBase):
         elif self.mode == 'HEAL':
             # STEP 3.1: Player Heal with Mana cost check
             heal_cost = 20
-            if self.player['mana'] >= heal_cost:
-                heal_amount = 10
-                old_hp = self.player['hp']
-                self.player['hp'] = min(self.player['max_hp'], self.player['hp'] + heal_amount)
-                self.player['mana'] -= heal_cost
-                healed = self.player['hp'] - old_hp
-                self.message = f'Player healed +{healed} HP. HP: {self.player["hp"]}/{self.player["max_hp"]}. Mana: {self.player["mana"]}.'
+            heal_amount = 10
+            old_hp = self.player.hp
+            if self.player.heal(heal_amount, heal_cost):
+                healed = self.player.hp - old_hp
+                self.message = f'Player healed +{healed} HP. HP: {self.player.hp}/{self.player.max_hp}. Mana: {self.player.mana}.'
                 self.mode = 'IDLE'
                 self.end_turn()
             else:
-                self.message = f'Not enough Mana! Need {heal_cost}, have {self.player["mana"]}.'
+                self.message = f'Not enough Mana! Need {heal_cost}, have {self.player.mana}.'
                 self.mode = 'IDLE'
         else:
             self.message = 'Tidak ada aksi dipilih. Tekan M/A/H atau E untuk end turn.'
@@ -362,10 +370,10 @@ class TurnBasedGrid(ScreenBase):
         self.turn_count += 1  # increment turn counter
         
         # auto-win for Enderman at turn 20
-        if self.turn_count >= 20 and self.stages and any(e.get('type') == 'Enderman' for e in self.enemies if e.get('alive')):
+        if self.turn_count >= 20 and self.stages and any(type(e).__name__ == 'Enderman' for e in self.enemies if e.alive):
             for e in self.enemies:
-                if e.get('type') == 'Enderman':
-                    e['alive'] = False
+                if type(e).__name__ == 'Enderman':
+                    e.alive = False
             self.message = 'Turn 20 reached! Enderman auto-defeated!'
             if self.next_scene:
                 self.manager.go_to(self.next_scene)
@@ -374,16 +382,16 @@ class TurnBasedGrid(ScreenBase):
             return
         # enemy actions sequentially
         for e in self.enemies:
-            if not e['alive']:
+            if not e.alive:
                 continue
             self.enemy_action(e)
-            if self.player['hp'] <= 0:
+            if self.player.hp <= 0:
                 break
         # check results
-        if self.player['hp'] <= 0:
+        if self.player.hp <= 0:
             self.manager.go_to('end_menu')
             return
-        if all(not e['alive'] for e in self.enemies):
+        if all(not e.alive for e in self.enemies):
             # if sequential stages were provided, advance to next stage
             if self.stages:
                 if self.stage_index < len(self.stages) - 1:
@@ -392,12 +400,16 @@ class TurnBasedGrid(ScreenBase):
                     etype = self.stages[self.stage_index]
                     ex = self.grid_w - 2
                     ey = self.grid_h // 2
-                    if etype == 'Zombie': hp, atk, mana = 20, 3, 0
-                    elif etype == 'Skeleton': hp, atk, mana = 14, 1, 0
-                    elif etype == 'Enderman': hp, atk, mana = 24, 4, 80
-                    elif etype == 'Boss': hp, atk, mana = 40, 4, 100
-                    else: hp, atk, mana = 20, 2, 0
-                    self.enemies = [{'type':etype,'x':ex,'y':ey,'hp':hp,'max_hp':hp,'atk':atk,'mana':mana,'alive':True}]
+                    if etype == 'Zombie':
+                        self.enemies = [Zombie(ex, ey)]
+                    elif etype == 'Skeleton':
+                        self.enemies = [Skeleton(ex, ey)]
+                    elif etype == 'Enderman':
+                        self.enemies = [Enderman(ex, ey)]
+                    elif etype == 'Boss':
+                        self.enemies = [Boss(ex, ey)]
+                    else:
+                        self.enemies = [Zombie(ex, ey)]  # default fallback
                     # update self.units to include new enemy (fix for unit_at check)
                     self.units = [self.player] + self.enemies
                     # rebuild enemy_frames arrays
@@ -406,7 +418,7 @@ class TurnBasedGrid(ScreenBase):
                     self.enemy_anim_indexes = []
                     self.enemy_anim_timers = []
                     for e in self.enemies:
-                        et = e['type']
+                        et = type(e).__name__
                         name = et.lower()
                         frames = []
                         loaded = False
@@ -469,10 +481,10 @@ class TurnBasedGrid(ScreenBase):
                         self.enemy_anim_indexes.append(0)
                         self.enemy_anim_timers.append(0)
                     # restore player HP
-                    self.player['hp'] = self.player['max_hp']
+                    self.player.hp = self.player.max_hp
                     self.turn = 'PLAYER'
                     self.mode = 'IDLE'
-                    self.message = f'Stage {self.stage_index+1}: {self.enemies[0]["type"]}. ATK={self.player["atk"]}. M:move A:attack H:heal'
+                    self.message = f'Stage {self.stage_index+1}: {type(self.enemies[0]).__name__}. ATK={self.player.atk}. M:move A:attack H:heal'
                     return
                 else:
                     if self.next_scene:
@@ -492,34 +504,34 @@ class TurnBasedGrid(ScreenBase):
 
     def enemy_action(self, e):
         # simple enemy action using fuzzy.get_final_action when available
-        occupied = {(ee['x'], ee['y']) for ee in self.enemies if ee['alive']}
-        occupied.add((self.player['x'], self.player['y']))
-        hp_p = int(100 * self.player['hp'] / max(1, self.player['max_hp']))
-        hp_b = int(100 * e['hp'] / max(1, e['max_hp']))
-        mana_p = int(getattr(self.player, 'mana', 0))
-        mana_b = int(e.get('mana', 0))
+        occupied = {(ee.x, ee.y) for ee in self.enemies if ee.alive}
+        occupied.add((self.player.x, self.player.y))
+        hp_p = int(100 * self.player.hp / max(1, self.player.max_hp))
+        hp_b = int(100 * e.hp / max(1, e.max_hp))
+        mana_p = int(self.player.mana)
+        mana_b = int(e.mana)
         cd_p = 0
         if self.fuzzy:
             try:
-                action, target = self.fuzzy.get_final_action(e['type'], hp_p, hp_b, mana_p, mana_b, cd_p, (e['x'], e['y']), (self.player['x'], self.player['y']), occupied, self.grid_w, self.grid_h)
+                action, target = self.fuzzy.get_final_action(type(e).__name__, hp_p, hp_b, mana_p, mana_b, cd_p, (e.x, e.y), (self.player.x, self.player.y), occupied, self.grid_w, self.grid_h)
             except Exception:
                 action, target = ('MOVE_CLOSE', None)
         else:
             action, target = ('MOVE_CLOSE', None)
         if action in ('ATTACK', 'RANGED_ATTACK'):
-            if abs(e['x'] - self.player['x']) + abs(e['y'] - self.player['y']) <= 2:
-                self.player['hp'] -= e['atk']
+            if abs(e.x - self.player.x) + abs(e.y - self.player.y) <= 2:
+                self.player.hp -= e.atk
         elif action in ('MOVE_CLOSE', 'MOVE_RETREAT', 'TELEPORT'):
             if target and target not in occupied:
-                e['x'], e['y'] = target
+                e.x, e.y = target
         elif action == 'HEAL':
             # STEP 3.2: Enemy Heal with Mana cost check
-            heal_cost = e.get('heal_cost', 20)
-            if e.get('mana', 0) >= heal_cost:
-                heal_amount = e.get('heal_amount', 10)
-                e['hp'] = min(e['max_hp'], e['hp'] + heal_amount)
-                e['mana'] -= heal_cost
-                print(f"{e['type']} healed +{heal_amount} HP. Mana: {e['mana']}")
+            heal_cost = 20
+            if e.mana >= heal_cost:
+                heal_amount = 10
+                e.hp = min(e.max_hp, e.hp + heal_amount)
+                e.mana -= heal_cost
+                print(f"{type(e).__name__} healed +{heal_amount} HP. Mana: {e.mana}")
 
     def update(self, dt):
         # advance animations
@@ -534,40 +546,40 @@ class TurnBasedGrid(ScreenBase):
                 self.enemy_anim_indexes[i] = (self.enemy_anim_indexes[i] + 1) % max(1, len(frames))
 
         if self.turn == 'ENEMY':
-            occupied = {(e['x'],e['y']) for e in self.enemies if e['alive']}
-            occupied.add((self.player['x'], self.player['y']))
+            occupied = {(e.x, e.y) for e in self.enemies if e.alive}
+            occupied.add((self.player.x, self.player.y))
             for e in self.enemies:
-                if not e['alive']: continue
-                hp_p = int(100 * self.player['hp'] / max(1, self.player['max_hp']))
-                hp_b = int(100 * e['hp'] / max(1, e['max_hp']))
-                mana_p = int(getattr(self.player,'mana',0))
-                mana_b = int(getattr(e,'mana',0))
+                if not e.alive: continue
+                hp_p = int(100 * self.player.hp / max(1, self.player.max_hp))
+                hp_b = int(100 * e.hp / max(1, e.max_hp))
+                mana_p = int(self.player.mana)
+                mana_b = int(e.mana)
                 cd_p = 0
                 if self.fuzzy:
                     try:
-                        action, target = self.fuzzy.get_final_action(e['type'], hp_p, hp_b, mana_p, mana_b, cd_p, (e['x'],e['y']), (self.player['x'],self.player['y']), occupied, self.grid_w, self.grid_h)
+                        action, target = self.fuzzy.get_final_action(type(e).__name__, hp_p, hp_b, mana_p, mana_b, cd_p, (e.x, e.y), (self.player.x, self.player.y), occupied, self.grid_w, self.grid_h)
                     except Exception:
                         action, target = ('MOVE_CLOSE', None)
                 else:
                     action, target = ('MOVE_CLOSE', None)
                 if action in ('ATTACK','RANGED_ATTACK'):
-                    if abs(e['x']-self.player['x'])+abs(e['y']-self.player['y']) <= 2:
-                        self.player['hp'] -= e['atk']
+                    if abs(e.x-self.player.x)+abs(e.y-self.player.y) <= 2:
+                        self.player.hp -= e.atk
                 elif action in ('MOVE_CLOSE','MOVE_RETREAT','TELEPORT'):
                     if target and target not in occupied:
-                        e['x'], e['y'] = target
+                        e.x, e.y = target
                 elif action == 'HEAL':
                     # STEP 3.2: Enemy Heal with Mana cost check (update method)
-                    heal_cost = e.get('heal_cost', 20)
-                    if e.get('mana', 0) >= heal_cost:
-                        heal_amount = e.get('heal_amount', 10)
-                        e['hp'] = min(e['max_hp'], e['hp'] + heal_amount)
-                        e['mana'] -= heal_cost
+                    heal_cost = 20
+                    if e.mana >= heal_cost:
+                        heal_amount = 10
+                        e.hp = min(e.max_hp, e.hp + heal_amount)
+                        e.mana -= heal_cost
 
-            if self.player['hp'] <= 0:
+            if self.player.hp <= 0:
                 self.manager.go_to('end_menu')
                 return
-            if all(not e['alive'] for e in self.enemies):
+            if all(not e.alive for e in self.enemies):
                 if self.next_scene:
                     self.manager.go_to(self.next_scene)
                 else:
@@ -579,7 +591,7 @@ class TurnBasedGrid(ScreenBase):
     def draw(self, surface):
         surface.fill((20,20,20))
         # Draw battlefield background based on enemy type
-        is_boss_fight = any(e.get('type') == 'Boss' and e.get('alive') for e in self.enemies)
+        is_boss_fight = any(type(e).__name__ == 'Boss' and e.alive for e in self.enemies)
         if is_boss_fight and self.boss_battle_bg:
             surface.blit(self.boss_battle_bg, (self.origin_x, self.origin_y))
         elif self.battlefield_bg:
@@ -600,25 +612,25 @@ class TurnBasedGrid(ScreenBase):
                 pygame.draw.rect(surface, (180,240,180), r, 2)
 
         # draw player (animated)
-        px = self.origin_x + self.player['x'] * self.tile
-        py = self.origin_y + self.player['y'] * self.tile
+        px = self.origin_x + self.player.x * self.tile
+        py = self.origin_y + self.player.y * self.tile
         pframe = self.player_frames[self.player_anim_index]
         # position sprite to sit on bottom center of tile
         rect = pframe.get_rect(midbottom=(px + self.tile//2, py + self.tile - 8))
         surface.blit(pframe, rect)
         # draw player HP bar
-        ph_ratio = max(0, self.player['hp']) / self.player['max_hp']
+        ph_ratio = max(0, self.player.hp) / self.player.max_hp
         bar_w = int(self.tile * 0.8)
-        bx = self.player['x']*self.tile + (self.tile-bar_w)//2
-        by = self.player['y']*self.tile + self.tile - 12
+        bx = self.player.x*self.tile + (self.tile-bar_w)//2
+        by = self.player.y*self.tile + self.tile - 12
         pygame.draw.rect(surface, (40,40,40), (bx,by,bar_w,6))
         pygame.draw.rect(surface, (50,180,50), (bx,by,int(bar_w*ph_ratio),6))
 
         # draw enemies
         for i, e in enumerate(self.enemies):
-            if not e['alive']: continue
-            ex = self.origin_x + e['x'] * self.tile
-            ey = self.origin_y + e['y'] * self.tile
+            if not e.alive: continue
+            ex = self.origin_x + e.x * self.tile
+            ey = self.origin_y + e.y * self.tile
             frames = self.enemy_frames[i]
             idx = self.enemy_anim_indexes[i] % max(1, len(frames))
             ef = frames[idx]
@@ -626,10 +638,10 @@ class TurnBasedGrid(ScreenBase):
             erect = ef.get_rect(midbottom=(ex + self.tile//2, ey + self.tile - 8))
             surface.blit(ef, erect)
             # hp bar
-            ehr = max(0, e['hp']) / e['max_hp']
+            ehr = max(0, e.hp) / e.max_hp
             bar_w = int(self.tile * 0.8)
-            bx = e['x']*self.tile + (self.tile-bar_w)//2
-            by = e['y']*self.tile + self.tile - 12
+            bx = e.x*self.tile + (self.tile-bar_w)//2
+            by = e.y*self.tile + self.tile - 12
             pygame.draw.rect(surface, (40,40,40), (bx,by,bar_w,6))
             pygame.draw.rect(surface, (50,180,50), (bx,by,int(bar_w*ehr),6))
 
@@ -650,7 +662,7 @@ class TurnBasedGrid(ScreenBase):
         surface.blit(turn_surf, (self.screen_width - 200, self.grid_h*self.tile + 6))
         
         # Player stats (HP and Mana) display
-        stats_text = f"Player HP: {self.player['hp']}/{self.player['max_hp']} | Mana: {self.player['mana']}"
+        stats_text = f"Player HP: {self.player.hp}/{self.player.max_hp} | Mana: {self.player.mana}"
         stats_surf = self.font.render(stats_text, True, (100, 255, 100))
         surface.blit(stats_surf, (8, self.grid_h*self.tile + 90))
         
