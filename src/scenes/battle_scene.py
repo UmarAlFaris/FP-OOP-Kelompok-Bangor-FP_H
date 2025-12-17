@@ -351,11 +351,11 @@ class TurnBasedGrid(ScreenBase):
                     self.manager.level_up(self.reward_levels)
                     if self.is_miniboss:
                         self.manager.miniboss_defeated = True
-                    # Use next_scene if provided (e.g., boss -> end_menu), else crossroads
+                    # Use next_scene if provided (e.g., boss -> end_menu), else campfire
                     if self.next_scene:
                         self.manager.go_to(self.next_scene)
                     else:
-                        self.manager.go_to('crossroads')
+                        self.manager.go_to('campfire')
                     return
             else:
                 # All enemies dead (non-staged battle) - victory!
@@ -364,11 +364,11 @@ class TurnBasedGrid(ScreenBase):
                 self.manager.level_up(self.reward_levels)
                 if self.is_miniboss:
                     self.manager.miniboss_defeated = True
-                # Use next_scene if provided (e.g., boss -> end_menu), else crossroads
+                # Use next_scene if provided (e.g., boss -> end_menu), else campfire
                 if self.next_scene:
                     self.manager.go_to(self.next_scene)
                 else:
-                    self.manager.go_to('crossroads')
+                    self.manager.go_to('campfire')
                 return
         # back to player
         self.turn = 'PLAYER'

@@ -50,7 +50,7 @@ FP-OOP-Kelompok-Bangor-FP_H/
     │   ├── fight_base.py  # Base fight scene
     │   ├── main_menu.py   # Main menu scene
     │   ├── battle_scene.py  # Battle scene
-    │   ├── crossroads.py    # Crossroads scene
+    │   ├── campfire.py    # Campfire scene
     │   ├── end_menu.py      # End menu scene
     │   ├── high_score.py    # High score scene
     │   └── components/      # Scene components

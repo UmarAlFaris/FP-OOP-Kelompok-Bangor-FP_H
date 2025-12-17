@@ -2,7 +2,7 @@ import random
 from scenes.main_menu import MainMenuScreen
 from scenes.end_menu import EndMenuScreen
 from scenes.high_score import HighScoreScreen
-from scenes.crossroads import CrossroadsScreen
+from scenes.campfire import CampfireScreen
 from entities.player import Player
 
 class ScreenManager:
@@ -18,7 +18,7 @@ class ScreenManager:
 
     def _register_screens(self):
         self.screens["main_menu"] = MainMenuScreen(self, self.screen_size)
-        self.screens["crossroads"] = CrossroadsScreen(self, self.screen_size)
+        self.screens["campfire"] = CampfireScreen(self, self.screen_size)
         self.screens["high_score"] = HighScoreScreen(self, self.screen_size)
         self.screens["end_menu"] = EndMenuScreen(self, self.screen_size)
 

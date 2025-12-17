@@ -29,7 +29,7 @@ class MainMenuScreen(ScreenBase):
 
     def start_game(self):
         self.manager.reset_score()  # Reset global turn counter for new run
-        self.manager.go_to("crossroads")
+        self.manager.go_to("campfire")
 
 
     def go_high_score(self):

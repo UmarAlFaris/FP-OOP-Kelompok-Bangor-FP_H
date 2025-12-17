@@ -1,11 +1,11 @@
-"""Crossroads Hub Screen - Central menu for the RPG overhaul."""
+"""Campfire Hub Screen - Central menu for the RPG overhaul."""
 import pygame
 import os
 from scenes.base import ScreenBase
 from ui.button import Button
 
 
-class CrossroadsScreen(ScreenBase):
+class CampfireScreen(ScreenBase):
     """Hub screen where the player can choose their next action."""
     
     def __init__(self, manager, screen_size):
@@ -49,7 +49,7 @@ class CrossroadsScreen(ScreenBase):
         self.music_path = os.path.join(base_path, "..", "..", "assets", "sounds", "Castle In The Mist.mp3")
     
     def on_enter(self):
-        """Called when entering the crossroads screen - play background music."""
+        """Called when entering the campfire screen - play background music."""
         try:
             pygame.mixer.music.load(self.music_path)
             pygame.mixer.music.play(loops=-1)
@@ -57,7 +57,7 @@ class CrossroadsScreen(ScreenBase):
             print(f"Warning: Could not load background music: {e}")
     
     def on_exit(self):
-        """Called when leaving the crossroads screen - stop background music."""
+        """Called when leaving the campfire screen - stop background music."""
         pygame.mixer.music.stop()
     
     def start_hunt(self):
@@ -100,7 +100,7 @@ class CrossroadsScreen(ScreenBase):
         surface.blit(overlay, (0, 0))
         
         # Draw title
-        title = self.font_title.render("CROSSROADS", True, (255, 215, 0))
+        title = self.font_title.render("CAMPFIRE", True, (255, 215, 0))
         tw = title.get_width()
         surface.blit(title, ((self.screen_width - tw) // 2, 50))
         
