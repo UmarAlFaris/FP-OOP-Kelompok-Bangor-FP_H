@@ -3,6 +3,7 @@ from scenes.main_menu import MainMenuScreen
 from scenes.end_menu import EndMenuScreen
 from scenes.high_score import HighScoreScreen
 from scenes.crossroads import CrossroadsScreen
+from entities.player import Player
 
 class ScreenManager:
     def __init__(self, screen_size):
@@ -10,8 +11,8 @@ class ScreenManager:
         self.screens = {}
         self.current_screen = None
         self.total_run_turns = 0  # Global turn counter for entire run
-        # RPG persistent player stats
-        self.player_stats = {'level': 1, 'hp': 20, 'max_hp': 20, 'atk': 5, 'mana': 100, 'max_mana': 100}
+        # RPG persistent player stats - uses centralized defaults from Player
+        self.player_stats = Player.get_default_stats()
         self.miniboss_defeated = False
         self._register_screens()
 
@@ -26,7 +27,7 @@ class ScreenManager:
     def reset_score(self):
         """Reset the global turn counter and player stats for a new game run."""
         self.total_run_turns = 0
-        self.player_stats = {'level': 1, 'hp': 25, 'max_hp': 25, 'atk': 5, 'mana': 100, 'max_mana': 100}
+        self.player_stats = Player.get_default_stats()
         self.miniboss_defeated = False
 
     def level_up(self, amount):

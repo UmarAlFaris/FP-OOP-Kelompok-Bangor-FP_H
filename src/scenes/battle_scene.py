@@ -2,7 +2,15 @@
 import pygame
 import os
 from scenes.base import ScreenBase
-from config import *
+from config import (
+    PLAYER_HEAL_COST,
+    PLAYER_HEAL_AMOUNT,
+    ENEMY_HEAL_COST,
+    ENEMY_HEAL_AMOUNT,
+    GRID_W,
+    GRID_H,
+    ENDERMAN_ESCAPE_TURN
+)
 from entities.player import Player
 from entities.enemies import Zombie, Skeleton, Enderman
 from entities.boss import Boss
@@ -29,8 +37,8 @@ class TurnBasedGrid(ScreenBase):
             'Enderman': 14,
             'Boss': 8,
         }
-        self.grid_w = 8
-        self.grid_h = 6
+        self.grid_w = GRID_W
+        self.grid_h = GRID_H
         usable_h = self.screen_height - 120
         self.tile = min(self.screen_width // self.grid_w, usable_h // self.grid_h)
         # align grid to top-left
@@ -270,11 +278,11 @@ class TurnBasedGrid(ScreenBase):
     def btn_heal(self):
         if self.turn != 'PLAYER':
             return
-        if self.player.mana >= 20:
+        if self.player.mana >= PLAYER_HEAL_COST:
             self.mode = 'HEAL'
-            self.message = 'Mode HEAL. Tekan Enter untuk heal (+10 HP, costs 20 Mana).'
+            self.message = f'Mode HEAL. Tekan Enter untuk heal (+{PLAYER_HEAL_AMOUNT} HP, costs {PLAYER_HEAL_COST} Mana).'
         else:
-            self.message = 'Not enough Mana for Heal! Need 20 Mana.'
+            self.message = f'Not enough Mana for Heal! Need {PLAYER_HEAL_COST} Mana.'
     
     def btn_end(self):
         if self.turn != 'PLAYER':
@@ -354,16 +362,14 @@ class TurnBasedGrid(ScreenBase):
                 self.message = 'Target tidak valid untuk ATTACK.'
         elif self.mode == 'HEAL':
             # STEP 3.1: Player Heal with Mana cost check
-            heal_cost = 20
-            heal_amount = 10
             old_hp = self.player.hp
-            if self.player.heal(heal_amount, heal_cost):
+            if self.player.heal(PLAYER_HEAL_AMOUNT, PLAYER_HEAL_COST):
                 healed = self.player.hp - old_hp
                 self.message = f'Player healed +{healed} HP. HP: {self.player.hp}/{self.player.max_hp}. Mana: {self.player.mana}.'
                 self.mode = 'IDLE'
                 self.end_turn()
             else:
-                self.message = f'Not enough Mana! Need {heal_cost}, have {self.player.mana}.'
+                self.message = f'Not enough Mana! Need {PLAYER_HEAL_COST}, have {self.player.mana}.'
                 self.mode = 'IDLE'
         else:
             self.message = 'Tidak ada aksi dipilih. Tekan M/A/H atau E untuk end turn.'
@@ -378,12 +384,12 @@ class TurnBasedGrid(ScreenBase):
         self.turn_count += 1  # increment local turn counter
         self.manager.total_run_turns += 1  # increment global turn counter
         
-        # auto-win for Enderman at turn 20
-        if self.turn_count >= 20 and self.stages and any(type(e).__name__ == 'Enderman' for e in self.enemies if e.alive):
+        # auto-win for Enderman at escape turn threshold
+        if self.turn_count >= ENDERMAN_ESCAPE_TURN and self.stages and any(type(e).__name__ == 'Enderman' for e in self.enemies if e.alive):
             for e in self.enemies:
                 if type(e).__name__ == 'Enderman':
                     e.alive = False
-            self.message = 'Turn 20 reached! Enderman auto-defeated!'
+            self.message = f'Turn {ENDERMAN_ESCAPE_TURN} reached! Enderman auto-defeated!'
             if self.next_scene:
                 self.manager.go_to(self.next_scene)
             else:
@@ -550,12 +556,10 @@ class TurnBasedGrid(ScreenBase):
                 e.x, e.y = target
         elif action == 'HEAL':
             # STEP 3.2: Enemy Heal with Mana cost check
-            heal_cost = 20
-            if e.mana >= heal_cost:
-                heal_amount = 10
-                e.hp = min(e.max_hp, e.hp + heal_amount)
-                e.mana -= heal_cost
-                print(f"{type(e).__name__} healed +{heal_amount} HP. Mana: {e.mana}")
+            if e.mana >= ENEMY_HEAL_COST:
+                e.hp = min(e.max_hp, e.hp + ENEMY_HEAL_AMOUNT)
+                e.mana -= ENEMY_HEAL_COST
+                print(f"{type(e).__name__} healed +{ENEMY_HEAL_AMOUNT} HP. Mana: {e.mana}")
 
     def update(self, dt):
         # advance animations
@@ -594,11 +598,9 @@ class TurnBasedGrid(ScreenBase):
                         e.x, e.y = target
                 elif action == 'HEAL':
                     # STEP 3.2: Enemy Heal with Mana cost check (update method)
-                    heal_cost = 20
-                    if e.mana >= heal_cost:
-                        heal_amount = 10
-                        e.hp = min(e.max_hp, e.hp + heal_amount)
-                        e.mana -= heal_cost
+                    if e.mana >= ENEMY_HEAL_COST:
+                        e.hp = min(e.max_hp, e.hp + ENEMY_HEAL_AMOUNT)
+                        e.mana -= ENEMY_HEAL_COST
 
             if self.player.hp <= 0:
                 # Sync the death state (HP <= 0) to the manager so EndMenu knows we died
