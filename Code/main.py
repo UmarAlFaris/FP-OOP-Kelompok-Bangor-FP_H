@@ -1,11 +1,30 @@
 import pygame
 import sys
+import os
 from collections import deque
+
+# helper to prefer Testing/Assets when available
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+def asset_path(rel):
+    # rel like 'zombie/Idle.png' or 'player/idle1.png'
+    t = os.path.join(REPO_ROOT, 'Testing', 'Assets', rel)
+    c = os.path.join(os.path.dirname(__file__), 'assets', rel)
+    if os.path.isfile(t):
+        return t
+    if os.path.isfile(c):
+        return c
+    # try case-insensitive fallback in Code assets
+    if os.path.isdir(os.path.dirname(c)):
+        for f in os.listdir(os.path.dirname(c)):
+            if f.lower() == os.path.basename(rel).lower():
+                return os.path.join(os.path.dirname(c), f)
+    return rel
 
 # ---------- Konfigurasi ----------
 GRID_W, GRID_H = 8, 6
 TILE = 80
-WIDTH, HEIGHT = GRID_W * TILE, GRID_H * TILE + 120   # beri ruang hasil menu
+# force the game window to match main runner size
+WIDTH, HEIGHT = 1200, 800
 FPS = 60
 
 MOVE_RANGE = 1
@@ -138,16 +157,16 @@ class Game:
         self.font = pygame.font.SysFont(None, 22)
         self.bigfont = pygame.font.SysFont(None, 28)
         idle_frames = [
-            "assets/player/idle1.png","assets/player/idle2.png","assets/player/idle3.png",
-            "assets/player/idle4.png","assets/player/idle5.png","assets/player/idle6.png",
-            "assets/player/idle7.png","assets/player/idle8.png",
+            asset_path("player/idle1.png"),asset_path("player/idle2.png"),asset_path("player/idle3.png"),
+            asset_path("player/idle4.png"),asset_path("player/idle5.png"),asset_path("player/idle6.png"),
+            asset_path("player/idle7.png"),asset_path("player/idle8.png"),
         ]
         self.player_idle_anim = AnimatedSprite(idle_frames, (TILE+30, TILE+30))
         self.player_mana = 100
 
         # --- load zombie sprite-sheet (6 horizontal frames) ---
         try:
-            sheet = pygame.image.load("assets/zombie/Idle.png").convert_alpha()
+            sheet = pygame.image.load(asset_path("zombie/Idle.png")).convert_alpha()
             # known frames: 6 horizontal frames
             n_frames = 6
             frame_w = sheet.get_width() // n_frames
@@ -168,7 +187,7 @@ class Game:
 
         # --- load skeleton sprite-sheet (assume 8 horizontal frames) ---
         try:
-            skel_sheet = pygame.image.load("assets/skeleton/Idle.png").convert_alpha()
+            skel_sheet = pygame.image.load(asset_path("skeleton/Idle.png")).convert_alpha()
             n_skel = 7
             skel_fw = skel_sheet.get_width() // n_skel
             skel_fh = skel_sheet.get_height()
@@ -187,7 +206,7 @@ class Game:
 
         # --- load enderman sprite-sheet (14 horizontal frames) ---
         try:
-            end_sheet = pygame.image.load("assets/enderman/Idle.png").convert_alpha()
+            end_sheet = pygame.image.load(asset_path("enderman/Idle.png")).convert_alpha()
             n_end = 14
             end_fw = end_sheet.get_width() // n_end
             end_fh = end_sheet.get_height()
@@ -206,7 +225,7 @@ class Game:
 
         # --- load boss sprite-sheet (8 horizontal frames) ---
         try:
-            boss_sheet = pygame.image.load("assets/boss/Idle.png").convert_alpha()
+            boss_sheet = pygame.image.load(asset_path("boss/Idle.png")).convert_alpha()
             n_boss = 8
             boss_fw = boss_sheet.get_width() // n_boss
             boss_fh = boss_sheet.get_height()
