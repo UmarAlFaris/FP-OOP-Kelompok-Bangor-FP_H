@@ -1,13 +1,13 @@
-from Scenes.main_menu import MainMenuScreen
-from Scenes.S1_Scene_Opening import Scene1
-from Scenes.S2_Scene_RuangRapat import Scene2
-from Scenes.S3_Game_Kroco_Fight import SceneKroco
-from Scenes.S4_Scene_StorageRoom_1 import Scene4
-from Scenes.S5_Scene_StorageRoom_2 import Scene5
-from Scenes.S6_Game_MiniBoss_Fight import Scene6
-from Scenes.S7_Scene_Adzan_Subuh import Scene7
-from Scenes.S8_Game_Boss_Fight import SceneBoss
-from Scenes.S_end_menu import EndMenuScreen
+from .Scenes.main_menu import MainMenuScreen
+from .Scenes.S1_Scene_Opening import Scene1
+from .Scenes.S2_Scene_RuangRapat import Scene2
+from .Scenes.S3_Game_Kroco_Fight import SceneKroco
+from .Scenes.S4_Scene_StorageRoom_1 import Scene4
+from .Scenes.S5_Scene_StorageRoom_2 import Scene5
+from .Scenes.S6_Game_MiniBoss_Fight import Scene6
+from .Scenes.S7_Scene_Adzan_Subuh import Scene7
+from .Scenes.S8_Game_Boss_Fight import SceneBoss
+from .Scenes.S_end_menu import EndMenuScreen
 
 class ScreenManager:
     def __init__(self, screen_size):

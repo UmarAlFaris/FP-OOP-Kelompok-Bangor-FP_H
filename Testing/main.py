@@ -1,5 +1,5 @@
 import pygame
-from screen_manager import ScreenManager
+from .screen_manager import ScreenManager
 
 def main():
     pygame.init()

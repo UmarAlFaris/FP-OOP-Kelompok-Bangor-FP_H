@@ -2,7 +2,7 @@ import pygame
 import os
 import sys
 from .base import ScreenBase
-from ui.button import Button
+from ..ui.button import Button
 
 
 def scale_preserve(surface, target_size):

@@ -1,7 +1,7 @@
 import pygame
 import os
 from .base import ScreenBase
-from ui.button import Button
+from ..ui.button import Button
 
 
 class EndMenuScreen(ScreenBase):
