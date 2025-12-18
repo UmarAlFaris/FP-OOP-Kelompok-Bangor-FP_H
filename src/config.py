@@ -8,6 +8,16 @@ TILE = 80
 WIDTH, HEIGHT = 1200, 800
 FPS = 60
 
+# Map Collision Tiles (fences and stones that block movement)
+# These coordinates represent impassable terrain on the battlefield
+MAP_BLOCKED_TILES = frozenset([
+    (0, 0), (1, 0), (2, 0),  # Top-left obstacles
+    (0, 1), (6, 1),          # Row 1 obstacles
+    (1, 2),                   # Row 2 obstacle
+    (0, 4), (0, 5), (1, 5), (2, 5),  # Bottom-left obstacles
+    (3, 4), (4, 4),          # Bottom-center obstacles
+])
+
 # Gameplay Constants
 MOVE_RANGE = 1
 PLAYER_MAX_HP = 25

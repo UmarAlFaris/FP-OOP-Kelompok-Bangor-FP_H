@@ -9,7 +9,8 @@ from config import (
     ENEMY_HEAL_AMOUNT,
     GRID_W,
     GRID_H,
-    ENDERMAN_ESCAPE_TURN
+    ENDERMAN_ESCAPE_TURN,
+    MAP_BLOCKED_TILES
 )
 from entities.player import Player
 from entities.enemies import Zombie, Skeleton, Enderman
@@ -41,8 +42,21 @@ class TurnBasedGrid(ScreenBase):
         self.origin_x = 0
         self.origin_y = 0
 
+        # Find valid player spawn position (avoid blocked tiles)
+        player_x, player_y = 1, self.grid_h // 2
+        if (player_x, player_y) in MAP_BLOCKED_TILES:
+            # Find nearest valid position
+            for px in range(self.grid_w):
+                for py in range(self.grid_h):
+                    if (px, py) not in MAP_BLOCKED_TILES:
+                        player_x, player_y = px, py
+                        break
+                else:
+                    continue
+                break
+        
         # player - use persistent stats from manager
-        self.player = Player(1, self.grid_h // 2, stats=self.manager.player_stats)
+        self.player = Player(player_x, player_y, stats=self.manager.player_stats)
         
         # boss damage boost
         if stages and 'Boss' in stages:
@@ -59,8 +73,7 @@ class TurnBasedGrid(ScreenBase):
         if stages and len(stages) > 0:
             # start with first stage as a single enemy
             etype = stages[0]
-            ex = self.grid_w - 2
-            ey = self.grid_h // 2
+            ex, ey = self._find_valid_enemy_spawn()
             if etype == 'Zombie':
                 self.enemies.append(Zombie(ex, ey))
             elif etype == 'Skeleton':
@@ -77,6 +90,9 @@ class TurnBasedGrid(ScreenBase):
                 etype = e.get('type')
                 ex = e.get('x', self.grid_w-2)
                 ey = e.get('y', self.grid_h//2)
+                # Validate spawn position against blocked tiles
+                if (ex, ey) in MAP_BLOCKED_TILES:
+                    ex, ey = self._find_valid_enemy_spawn()
                 if etype == 'Zombie':
                     self.enemies.append(Zombie(ex, ey))
                 elif etype == 'Skeleton':
@@ -130,6 +146,24 @@ class TurnBasedGrid(ScreenBase):
                 'end': self.btn_end
             }
         )
+    
+    def _find_valid_enemy_spawn(self):
+        """Find a valid spawn position for enemies (avoiding blocked tiles)."""
+        # Try default position first (right side of grid)
+        preferred_x = self.grid_w - 2
+        preferred_y = self.grid_h // 2
+        
+        if (preferred_x, preferred_y) not in MAP_BLOCKED_TILES:
+            return preferred_x, preferred_y
+        
+        # Search for valid position from right side of grid
+        for x in range(self.grid_w - 1, -1, -1):
+            for y in range(self.grid_h):
+                if (x, y) not in MAP_BLOCKED_TILES:
+                    return x, y
+        
+        # Fallback to center if all else fails
+        return self.grid_w // 2, self.grid_h // 2
     
     def _play_spawn_sounds(self):
         """Play spawn sounds for all current enemies."""
@@ -316,10 +350,9 @@ class TurnBasedGrid(ScreenBase):
             if self.stages:
                 if self.stage_index < len(self.stages) - 1:
                     self.stage_index += 1
-                    # spawn next single enemy
+                    # spawn next single enemy at valid position
                     etype = self.stages[self.stage_index]
-                    ex = self.grid_w - 2
-                    ey = self.grid_h // 2
+                    ex, ey = self._find_valid_enemy_spawn()
                     if etype == 'Zombie':
                         self.enemies = [Zombie(ex, ey)]
                     elif etype == 'Skeleton':
@@ -399,7 +432,7 @@ class TurnBasedGrid(ScreenBase):
                 self._play_sound(f"{etype}_attack")
                 self.player.hp -= e.atk
         elif action in ('MOVE_CLOSE', 'MOVE_RETREAT', 'TELEPORT'):
-            if target and target not in occupied:
+            if target and target not in occupied and target not in MAP_BLOCKED_TILES:
                 # Play teleport sound for Enderman on move/teleport actions
                 if etype == 'enderman' and action in ('MOVE_CLOSE', 'MOVE_RETREAT', 'TELEPORT'):
                     self._play_sound('enderman_teleport')
@@ -445,7 +478,7 @@ class TurnBasedGrid(ScreenBase):
                     if abs(e.x-self.player.x)+abs(e.y-self.player.y) <= 2:
                         self.player.hp -= e.atk
                 elif action in ('MOVE_CLOSE','MOVE_RETREAT','TELEPORT'):
-                    if target and target not in occupied:
+                    if target and target not in occupied and target not in MAP_BLOCKED_TILES:
                         e.x, e.y = target
                 elif action == 'HEAL':
                     # STEP 3.2: Enemy Heal with Mana cost check (update method)

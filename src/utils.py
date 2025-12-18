@@ -28,19 +28,27 @@ def scale_preserve(surface, target_size):
     return out
 
 
-def bfs_reachable(start, max_dist, obstacles, grid_w=8, grid_h=6):
+def bfs_reachable(start, max_dist, obstacles, grid_w=8, grid_h=6, blocked_tiles=None):
     """Find all grid positions reachable within max_dist steps using BFS.
     
     Args:
         start: tuple (x, y) starting position
         max_dist: maximum distance/steps allowed
-        obstacles: set of (x, y) positions that block movement
+        obstacles: set of (x, y) positions that block movement (e.g., other units)
         grid_w: grid width
         grid_h: grid height
+        blocked_tiles: set of (x, y) map tiles that are impassable (fences, stones)
         
     Returns:
         set of (x, y) positions reachable from start
     """
+    # Import here to avoid circular import
+    from config import MAP_BLOCKED_TILES
+    
+    # Use provided blocked_tiles or default to config
+    if blocked_tiles is None:
+        blocked_tiles = MAP_BLOCKED_TILES
+    
     q = deque()
     q.append((start, 0))
     visited = {start}
@@ -57,6 +65,8 @@ def bfs_reachable(start, max_dist, obstacles, grid_w=8, grid_h=6):
             if (nx, ny) in visited:
                 continue
             if (nx, ny) in obstacles:
+                continue
+            if (nx, ny) in blocked_tiles:
                 continue
             visited.add((nx, ny))
             q.append(((nx, ny), d+1))

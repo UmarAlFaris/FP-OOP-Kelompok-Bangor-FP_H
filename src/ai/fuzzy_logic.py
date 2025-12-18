@@ -365,6 +365,13 @@ def map_fuzzy_score_to_behavior(score, bot_type):
     return "WAIT"
 
 # --- Movement & utility helpers (dipakai oleh get_final_action) ---
+
+# Import blocked tiles from config
+try:
+    from config import MAP_BLOCKED_TILES
+except ImportError:
+    MAP_BLOCKED_TILES = frozenset()
+
 def manhattan(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
@@ -374,7 +381,7 @@ def pick_adjacent_for_closer(zpos, ppos, occupied, grid_w, grid_h):
     best_d = manhattan(zpos, ppos)
     for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
         nx, ny = zx + dx, zy + dy
-        if 0 <= nx < grid_w and 0 <= ny < grid_h and (nx, ny) not in occupied:
+        if 0 <= nx < grid_w and 0 <= ny < grid_h and (nx, ny) not in occupied and (nx, ny) not in MAP_BLOCKED_TILES:
             d = manhattan((nx, ny), ppos)
             if d < best_d:
                 best_d = d
@@ -387,7 +394,7 @@ def pick_adjacent_for_farther(zpos, ppos, occupied, grid_w, grid_h):
     best_d = manhattan(zpos, ppos)
     for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
         nx, ny = zx + dx, zy + dy
-        if 0 <= nx < grid_w and 0 <= ny < grid_h and (nx, ny) not in occupied:
+        if 0 <= nx < grid_w and 0 <= ny < grid_h and (nx, ny) not in occupied and (nx, ny) not in MAP_BLOCKED_TILES:
             d = manhattan((nx, ny), ppos)
             if d > best_d:
                 best_d = d
@@ -433,7 +440,7 @@ def get_final_action(bot_type, hp_p, hp_b, mana_p, mana_b, cd_p,
     if behavior == "TELEPORT_CLOSE":
         for dx,dy in [(1,0),(-1,0),(0,1),(0,-1)]:
             tx,ty = player_pos[0]+dx, player_pos[1]+dy
-            if 0 <= tx < grid_w and 0 <= ty < grid_h and (tx,ty) not in occupied:
+            if 0 <= tx < grid_w and 0 <= ty < grid_h and (tx,ty) not in occupied and (tx,ty) not in MAP_BLOCKED_TILES:
                 return ("TELEPORT", (tx,ty))
         return ("WAIT", None)
 
