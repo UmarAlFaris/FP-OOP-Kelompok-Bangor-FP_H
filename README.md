@@ -15,8 +15,6 @@ Game ini berjalan dengan basis Turn Based-RPG yang mengambil POV dari Villain ut
 
 ## Project Structure
 
-The project has been refactored to follow professional Python standards and PEP 8 conventions:
-
 ```
 FP-OOP-Kelompok-Bangor-FP_H/
 ├── run_game.py          # Main entry point to run the game
@@ -68,7 +66,7 @@ FP-OOP-Kelompok-Bangor-FP_H/
 Run the game using the entry point script:
 
 ```bash
-python run_game.py
+python -m run_game
 ```
 
 ## Requirements
@@ -78,4 +76,3 @@ python run_game.py
 - cv2 (opencv-python)
 - numpy
 - scikit-fuzzy (for AI logic)
-

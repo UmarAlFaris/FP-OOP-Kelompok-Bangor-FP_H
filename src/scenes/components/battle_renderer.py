@@ -211,3 +211,4 @@ class BattleRenderer:
         stats_text = f"Lv. {player.level} | HP: {player.hp}/{player.max_hp} | ATK: {player.atk} | Mana: {player.mana}"
         stats_surf = self.font.render(stats_text, True, (100, 255, 100))
         surface.blit(stats_surf, (8, self.grid_h * self.tile + 90))
+        
