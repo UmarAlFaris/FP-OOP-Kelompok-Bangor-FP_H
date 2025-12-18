@@ -82,6 +82,14 @@ class HighScoreScreen(ScreenBase):
         else:
             surface.fill((20, 20, 40))
 
+        # Draw background panel for readability
+        panel_rect = pygame.Rect(0, 0, 450, 520)
+        panel_rect.center = (self.screen_width // 2, self.screen_height // 2 - 20)
+        panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
+        panel_surface.fill((0, 0, 0, 200))  # Semi-transparent black
+        surface.blit(panel_surface, panel_rect.topleft)
+        pygame.draw.rect(surface, (80, 80, 80), panel_rect, 3)  # Border
+        
         # Draw title
         title = self.font_title.render("Hall of Fame (Lowest Turns)", True, (255, 255, 255))
         tw = title.get_width()

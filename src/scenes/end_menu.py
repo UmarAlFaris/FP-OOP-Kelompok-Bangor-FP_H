@@ -26,27 +26,31 @@ class EndMenuScreen(ScreenBase):
         self.font_text = pygame.font.SysFont(None, 36)
         self.font_input = pygame.font.SysFont(None, 32)
         self.font_button = pygame.font.SysFont(None, 28)
+        self.font_error = pygame.font.SysFont(None, 24)
 
         # State variables (initialized in on_enter)
         self.boss_turns = 0
         self.player_name = ""
         self.saved = False
         self.input_active = True
+        self.error_msg = ""
 
         # Input box dimensions
         cx = screen_size[0] // 2
         self.input_box = pygame.Rect(cx - 150, 280, 300, 40)
         self.input_color_active = (100, 200, 255)
         self.input_color_inactive = (150, 150, 150)
+        self.input_color_error = (255, 100, 100)
 
         # Buttons - spaced vertically to avoid overlap
         btn_width = 200
         btn_height = 48
         btn_spacing = 60  # vertical spacing between buttons
+        start_y = 370  # Adjusted to make room for error message
         
-        self.save_btn = Button("Save Score", (cx, 350), (btn_width, btn_height), self.save_score, self.font_button)
-        self.menu_btn = Button("Main Menu", (cx, 350 + btn_spacing), (btn_width, btn_height), self.back_to_menu, self.font_button)
-        self.quit_btn = Button("Quit Game", (cx, 350 + btn_spacing * 2), (btn_width, btn_height), self.quit_game, self.font_button)
+        self.save_btn = Button("Save Score", (cx, start_y), (btn_width, btn_height), self.save_score, self.font_button)
+        self.menu_btn = Button("Main Menu", (cx, start_y + btn_spacing), (btn_width, btn_height), self.back_to_menu, self.font_button)
+        self.quit_btn = Button("Quit Game", (cx, start_y + btn_spacing * 2), (btn_width, btn_height), self.quit_game, self.font_button)
 
     def on_enter(self):
         """Called when screen becomes active. Fetch total run turns and reset state."""
@@ -65,15 +69,37 @@ class EndMenuScreen(ScreenBase):
         self.player_name = ""
         self.saved = False
         self.input_active = True
+        self.error_msg = ""
+
+    def validate_name(self, name):
+        """Validasi input nama. Raise ValueError jika tidak valid."""
+        # 1. Cek Panjang Karakter (3 - 21)
+        if not (3 <= len(name) <= 21):
+            raise ValueError("Name must be 3-21 characters long!")
+        
+        # 2. Cek Alphanumeric (Huruf dan Angka saja)
+        if not name.isalnum():
+            raise ValueError("Only letters and numbers allowed!")
 
     def save_score(self):
-        """Save the player's score to highscore.json."""
+        """Save the player's score to highscore.json with Exception Handling."""
         if self.saved:
             return  # Already saved
 
-        if not self.player_name.strip():
-            print("✗ Cannot save: Player name is empty")
-            return
+        # Reset pesan error sebelumnya
+        self.error_msg = ""
+
+        # --- IMPLEMENTASI EXCEPTION HANDLING BARU ---
+        try:
+            # Validasi input nama sebelum diproses
+            self.validate_name(self.player_name.strip())
+            
+        except ValueError as e:
+            # Menangkap error validasi (nama kependekan/simbol aneh)
+            print(f"✗ Validation Error: {e}")
+            self.error_msg = str(e)  # Tampilkan pesan error ke layar
+            return  # Batalkan proses save
+        # ---------------------------------------------
 
         # Prepare new entry
         new_entry = {
@@ -141,12 +167,14 @@ class EndMenuScreen(ScreenBase):
                 elif event.key == pygame.K_BACKSPACE:
                     # Remove last character
                     self.player_name = self.player_name[:-1]
+                    self.error_msg = ""  # Clear error on input change
                 else:
                     # Add character (limit to 20 characters)
                     if len(self.player_name) < 20:
                         char = event.unicode
                         if char.isprintable():
                             self.player_name += char
+                            self.error_msg = ""  # Clear error on input change
 
     def update(self, dt):
         """No updates needed."""
@@ -162,6 +190,14 @@ class EndMenuScreen(ScreenBase):
 
         if self.is_defeated:
             # DEFEATED state - show only title and navigation buttons
+            # Draw background panel for readability
+            panel_rect = pygame.Rect(0, 0, 400, 320)
+            panel_rect.center = (self.screen_width // 2, 200)
+            panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
+            panel_surface.fill((0, 0, 0, 200))  # Semi-transparent black
+            surface.blit(panel_surface, panel_rect.topleft)
+            pygame.draw.rect(surface, (80, 80, 80), panel_rect, 3)  # Border
+            
             title = self.font_title.render("DEFEATED", True, (255, 50, 50))
             tw = title.get_width()
             surface.blit(title, ((self.screen_width - tw) // 2, 80))
@@ -184,6 +220,14 @@ class EndMenuScreen(ScreenBase):
             self.quit_btn.draw(surface)
         else:
             # VICTORY state - show full UI with score input
+            # Draw background panel for readability
+            panel_rect = pygame.Rect(0, 0, 420, 450)
+            panel_rect.center = (self.screen_width // 2, 280)
+            panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
+            panel_surface.fill((0, 0, 0, 200))  # Semi-transparent black
+            surface.blit(panel_surface, panel_rect.topleft)
+            pygame.draw.rect(surface, (80, 80, 80), panel_rect, 3)  # Border
+            
             title = self.font_title.render("VICTORY!", True, (255, 255, 100))
             tw = title.get_width()
             surface.blit(title, ((self.screen_width - tw) // 2, 80))
@@ -199,8 +243,11 @@ class EndMenuScreen(ScreenBase):
                 pw = prompt.get_width()
                 surface.blit(prompt, ((self.screen_width - pw) // 2, 230))
 
-                # Draw input box
-                box_color = self.input_color_active if self.input_active else self.input_color_inactive
+                # Draw input box - use error color if error message present
+                if self.error_msg:
+                    box_color = self.input_color_error
+                else:
+                    box_color = self.input_color_active if self.input_active else self.input_color_inactive
                 pygame.draw.rect(surface, box_color, self.input_box, 2)
                 pygame.draw.rect(surface, (30, 30, 30), self.input_box.inflate(-4, -4))
 
@@ -215,6 +262,13 @@ class EndMenuScreen(ScreenBase):
                     pygame.draw.line(surface, (255, 255, 255), 
                                    (cursor_x, cursor_y), 
                                    (cursor_x, cursor_y + 24), 2)
+
+                # Draw error message below input box
+                if self.error_msg:
+                    error_surf = self.font_error.render(self.error_msg, True, self.input_color_error)
+                    error_x = self.input_box.x + (self.input_box.width - error_surf.get_width()) // 2
+                    error_y = self.input_box.y + self.input_box.height + 5
+                    surface.blit(error_surf, (error_x, error_y))
             else:
                 # Show saved message
                 saved_msg = self.font_text.render("Score Saved!", True, (100, 255, 100))
@@ -226,26 +280,27 @@ class EndMenuScreen(ScreenBase):
             btn_width = 200
             btn_height = 48
             btn_spacing = 60
+            start_y = 370  # Adjusted to make room for error message
             
             if not self.saved:
                 # All three buttons vertically stacked
-                self.save_btn.rect.center = (cx, 350)
+                self.save_btn.rect.center = (cx, start_y)
                 self.save_btn.text_rect = self.save_btn.text_surface.get_rect(center=self.save_btn.rect.center)
                 self.save_btn.draw(surface)
                 
-                self.menu_btn.rect.center = (cx, 350 + btn_spacing)
+                self.menu_btn.rect.center = (cx, start_y + btn_spacing)
                 self.menu_btn.text_rect = self.menu_btn.text_surface.get_rect(center=self.menu_btn.rect.center)
                 self.menu_btn.draw(surface)
                 
-                self.quit_btn.rect.center = (cx, 350 + btn_spacing * 2)
+                self.quit_btn.rect.center = (cx, start_y + btn_spacing * 2)
                 self.quit_btn.text_rect = self.quit_btn.text_surface.get_rect(center=self.quit_btn.rect.center)
                 self.quit_btn.draw(surface)
             else:
                 # Only menu and quit buttons, repositioned after save
-                self.menu_btn.rect.center = (cx, 350)
+                self.menu_btn.rect.center = (cx, start_y)
                 self.menu_btn.text_rect = self.menu_btn.text_surface.get_rect(center=self.menu_btn.rect.center)
                 self.menu_btn.draw(surface)
                 
-                self.quit_btn.rect.center = (cx, 350 + btn_spacing)
+                self.quit_btn.rect.center = (cx, start_y + btn_spacing)
                 self.quit_btn.text_rect = self.quit_btn.text_surface.get_rect(center=self.quit_btn.rect.center)
                 self.quit_btn.draw(surface)
