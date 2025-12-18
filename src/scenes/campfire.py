@@ -52,6 +52,7 @@ class CampfireScreen(ScreenBase):
         """Called when entering the campfire screen - play background music."""
         try:
             pygame.mixer.music.load(self.music_path)
+            pygame.mixer.music.set_volume(0.3)
             pygame.mixer.music.play(loops=-1)
         except Exception as e:
             print(f"Warning: Could not load background music: {e}")

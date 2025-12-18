@@ -188,6 +188,7 @@ class TurnBasedGrid(ScreenBase):
         if self.is_boss_fight:
             try:
                 pygame.mixer.music.load(self.assets['boss_music_path'])
+                pygame.mixer.music.set_volume(0.3)
                 pygame.mixer.music.play(loops=-1)
             except Exception as e:
                 print(f"Warning: Could not load boss music: {e}")

@@ -27,6 +27,26 @@ class MainMenuScreen(ScreenBase):
             Button("Exit", (cx, cy + 120), (180, 40), self.exit_game, self.font_button),
         ]
 
+        # Load main menu music
+        music_path = os.path.join(base_path, "..", "..", "assets", "sounds", "mainmenu_sound.mp3")
+        self.music_path = music_path if os.path.exists(music_path) else None
+        if not self.music_path:
+            print("✗ Warning: mainmenu_sound.mp3 not found")
+
+    def on_enter(self):
+        """Play main menu music when entering the screen."""
+        if self.music_path:
+            try:
+                pygame.mixer.music.load(self.music_path)
+                pygame.mixer.music.set_volume(0.3)
+                pygame.mixer.music.play(-1)  # Loop indefinitely
+            except Exception as ex:
+                print(f"✗ Error playing main menu music: {ex}")
+
+    def on_exit(self):
+        """Stop music when leaving main menu."""
+        pygame.mixer.music.stop()
+
     def start_game(self):
         self.manager.reset_score()  # Reset global turn counter for new run
         self.manager.go_to("campfire")
